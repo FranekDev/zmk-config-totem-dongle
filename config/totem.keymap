@@ -91,7 +91,7 @@
             bindings = <
           &kp EXCL    &kp AT       &kp DLLR     &kp PRCNT    &kp LBRC    &kp RBRC  &kp N7  &kp N8  &kp N9  &kp PLUS
           &kp AMPS    &kp GRAVE    &kp APOS     &kp DQT      &kp LBKT    &kp RBKT  &kp N4  &kp N5  &kp N6  &kp MINUS
-&kp PIPE  &kp CARET   &kp HASH     &kp BSLH     &kp UNDER    &kp LPAR    &kp RPAR  &kp N1  &kp N2  &kp N3  &kp MULTIPLY  &kp TILDE
+&kp PIPE  &kp CARET   &kp HASH     &kp BSLH     &kp UNDER    &kp LPAR    &kp RPAR  &kp N1  &kp N2  &kp N3  &kp STAR  &kp TILDE
                                    &trans       &trans       &trans      &kp LT    &kp N0  &kp GT
             >;
         };
