@@ -115,10 +115,10 @@
             //                                     ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛   ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛
 
             bindings = <
-        &trans       &trans       &kp UP     &trans     &trans       &RC_(PG_UP)   &LC(PG_DN)      &kp C_BRI_DN  &kp C_BRI_UP   &trans
-        &trans       &kp LEFT     &kp DOWN   &kp RIGHT  &trans       &kp C_MUTE    &kp HOME        &kp END       &kp ESC        &kp INS
-&trans  &trans       &kp PG_UP    &kp CAPS   &kp PG_DN  &trans       &kp C_VOL_DN  &kp C_VOL_UP    &kp C_PREV    &kp C_NEXT     &kp BSLH   &trans
-                                  &trans     &trans     &trans       &trans        &kp          &trans
+        &trans       &trans       &kp UP     &trans     &trans       &kp RC_(PG_UP)  &kp LC(PG_DN)   &kp C_BRI_DN  &kp C_BRI_UP   &trans
+        &trans       &kp LEFT     &kp DOWN   &kp RIGHT  &trans       &kp C_MUTE      &kp HOME        &kp END       &kp ESC        &kp INS
+&trans  &trans       &kp PG_UP    &kp CAPS   &kp PG_DN  &trans       &kp C_VOL_DN    &kp C_VOL_UP    &kp C_PREV    &kp C_NEXT     &kp BSLH   &trans
+                                  &trans     &trans     &trans       &trans          &kp          &trans
             >;
         };
 
