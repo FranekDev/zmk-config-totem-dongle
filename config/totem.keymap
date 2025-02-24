@@ -105,7 +105,7 @@
 
             // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
             //             ┏━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┓   ┏━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┓
-            //             ┃           ┃  CTRL_F5  ┃    UP     ┃           ┃           ┃   ┃  PREV_TAB ┃ NEXT_TAB  ┃ C_BRI_DN  ┃  C_BRI_UP ┃           ┃
+            //             ┃           ┃  CTRL_F5  ┃    UP     ┃           ┃           ┃   ┃  PREV_TAB ┃ NEXT_TAB  ┃ C_BRI_DN  ┃  C_BRI_UP ┃     =     ┃
             //             ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫   ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫
             //             ┃           ┃   LEFT    ┃    DOWN   ┃   RIGHT   ┃           ┃   ┃   MUTE    ┃   HOME    ┃    END    ┃    ESC    ┃    INS    ┃
             // ┏━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫   ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┓
@@ -115,7 +115,7 @@
             //                                     ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛   ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛
 
             bindings = <
-        &trans    &kp RC(F5)   &kp UP     &trans     &trans       &kp RC(PG_UP)   &kp LC(PG_DN)   &kp C_BRI_DN  &kp C_BRI_UP   &trans
+        &trans    &kp RC(F5)   &kp UP     &trans     &trans       &kp RC(PG_UP)   &kp LC(PG_DN)   &kp C_BRI_DN  &kp C_BRI_UP   &kp EQUAL
         &trans    &kp LEFT     &kp DOWN   &kp RIGHT  &trans       &kp C_MUTE      &kp HOME        &kp END       &kp ESC        &kp INS
 &trans  &trans    &kp PG_UP    &kp CAPS   &kp PG_DN  &trans       &kp C_VOL_DN    &kp C_VOL_UP    &kp C_PREV    &kp C_NEXT     &kp BSLH   &trans
                                       &trans     &trans     &trans       &trans          &kp          &trans
