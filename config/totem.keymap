@@ -80,20 +80,20 @@
 
             // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
             //             ┏━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┓   ┏━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┓
-            //             ┃     !     ┃     @     ┃     $     ┃     %     ┃     {     ┃   ┃     }     ┃     7     ┃     8     ┃     9     ┃     +     ┃
+            //             ┃     !     ┃     "     ┃     {     ┃     }     ┃     %     ┃   ┃     #     ┃     7     ┃     8     ┃     9     ┃     +     ┃
             //             ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫   ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫
-            //             ┃     &     ┃     `     ┃     '     ┃     "     ┃     [     ┃   ┃     ]     ┃     4     ┃     5     ┃     6     ┃     -     ┃
+            //             ┃     =     ┃     '     ┃     [     ┃     ]     ┃     @     ┃   ┃     $     ┃     4     ┃     5     ┃     6     ┃     -     ┃
             // ┏━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫   ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┓
-            // ┃     |     ┃     ˆ     ┃     #     ┃     \     ┃     _     ┃     (     ┃   ┃     )     ┃     1     ┃     2     ┃     3     ┃     *     ┃     ~     ┃
+            // ┃     &     ┃     _     ┃     `     ┃     (     ┃     )     ┃     ~     ┃   ┃     ?     ┃     1     ┃     2     ┃     3     ┃     *     ┃     |     ┃
             // ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫   ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛
             //                                     ┃           ┃           ┃           ┃   ┃     <     ┃     0     ┃     >     ┃
             //                                     ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛   ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛
 
             bindings = <
-          &kp EXCL    &kp AT       &kp DLLR     &kp PRCNT    &kp LBRC    &kp RBRC  &kp N7  &kp N8  &kp N9  &kp PLUS
-          &kp AMPS    &kp GRAVE    &kp APOS     &kp DQT      &kp LBKT    &kp RBKT  &kp N4  &kp N5  &kp N6  &kp MINUS
-&kp PIPE  &kp CARET   &kp HASH     &kp BSLH     &kp UNDER    &kp LPAR    &kp RPAR  &kp N1  &kp N2  &kp N3  &kp STAR  &kp TILDE
-                                   &trans       &trans       &trans      &kp LT    &kp N0  &kp GT
+          &kp EXCL    &kp DQT      &kp LBRC    &kp RBRC  &kp PRCNT    &kp HASH   &kp N7  &kp N8  &kp N9  &kp PLUS
+          &kp EQUAL   &kp SQT      &kp LBKT    &kp RBKT  &kp AT       &kp DLLR   &kp N4  &kp N5  &kp N6  &kp MINUS
+&kp AMPS  &kp UNDER   &kp GRAVE    &kp LPAR    &kp RPAR  &kp TILDE    &kp QMARK  &kp N1  &kp N2  &kp N3  &kp STAR  &kp PIPE
+                                   &trans      &trans    &trans       &kp LT     &kp N0  &kp GT
             >;
         };
 
@@ -106,20 +106,20 @@
 
             // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
             //             ┏━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┓   ┏━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┓
-            //             ┃           ┃  CTRL_F5  ┃    UP     ┃           ┃           ┃   ┃  PREV_TAB ┃ NEXT_TAB  ┃ C_BRI_DN  ┃  C_BRI_UP ┃     =     ┃
+            //             ┃           ┃           ┃    UP     ┃           ┃           ┃   ┃  PREV_TAB ┃ NEXT_TAB  ┃ C_BRI_DN  ┃  C_BRI_UP ┃     ˆ     ┃
             //             ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫   ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫
-            //             ┃           ┃   LEFT    ┃    DOWN   ┃   RIGHT   ┃           ┃   ┃   MUTE    ┃   HOME    ┃    END    ┃    ESC    ┃    INS    ┃
+            //             ┃           ┃   LEFT    ┃    DOWN   ┃   RIGHT   ┃           ┃   ┃   MUTE    ┃   HOME    ┃    END    ┃    ESC    ┃     \     ┃
             // ┏━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫   ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┓
-            // ┃           ┃           ┃   P UP    ┃  C LOCK   ┃  P DOWN   ┃           ┃   ┃   VOL-    ┃   VOL+    ┃   LAST    ┃   NEXT    ┃     \     ┃           ┃
+            // ┃           ┃           ┃   P UP    ┃  C LOCK   ┃  P DOWN   ┃           ┃   ┃   VOL-    ┃   VOL+    ┃   LAST    ┃   NEXT    ┃           ┃    INS    ┃
             // ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫   ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛
-            //                                     ┃           ┃   RALT    ┃           ┃   ┃           ┃           ┃           ┃
+            //                                     ┃           ┃           ┃           ┃   ┃           ┃           ┃           ┃
             //                                     ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛   ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛
 
             bindings = <
-        &trans    &kp RC(F5)   &kp UP     &trans     &trans       &kp RC(PG_UP)   &kp LC(PG_DN)   &kp C_BRI_DN  &kp C_BRI_UP   &kp EQUAL
-        &trans    &kp LEFT     &kp DOWN   &kp RIGHT  &trans       &kp C_MUTE      &kp HOME        &kp END       &kp ESC        &kp INS
-&trans  &trans    &kp PG_UP    &kp CAPS   &kp PG_DN  &trans       &kp C_VOL_DN    &kp C_VOL_UP    &kp C_PREV    &kp C_NEXT     &kp BSLH   &trans
-                                      &trans     &trans     &trans       &trans          &kp          &trans
+        &trans    &trans       &kp UP     &trans     &trans       &kp RC(PG_UP)   &kp LC(PG_DN)   &kp C_BRI_DN  &kp C_BRI_UP   &kp CARET
+        &trans    &kp LEFT     &kp DOWN   &kp RIGHT  &trans       &kp C_MUTE      &kp HOME        &kp END       &kp ESC        &kp BSLH
+&trans  &trans    &kp PG_UP    &kp CAPS   &kp PG_DN  &trans       &kp C_VOL_DN    &kp C_VOL_UP    &kp C_PREV    &kp C_NEXT     &trans    &lp INS
+                               &trans     &trans     &trans       &trans          &trans          &trans
             >;
         };
 
@@ -132,20 +132,20 @@
 
             // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
             //             ┏━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┓   ┏━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┓
-            //             ┃   RESET   ┃ BT CLEAR  ┃  OUT TOG  ┃           ┃           ┃   ┃           ┃    F7     ┃    F8     ┃    F9     ┃    F12    ┃
+            //             ┃    ESC    ┃  CTRL_F5  ┃           ┃           ┃           ┃   ┃           ┃    F7     ┃    F8     ┃    F9     ┃    F12    ┃
             //             ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫   ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫
-            //             ┃ BOOTLOAD  ┃ BT NEXT   ┃           ┃           ┃           ┃   ┃           ┃    F4     ┃    F5     ┃    F6     ┃    F11    ┃
+            //             ┃           ┃           ┃           ┃           ┃           ┃   ┃           ┃    F4     ┃    F5     ┃    F6     ┃    F11    ┃
             // ┏━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫   ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┓
-            // ┃           ┃           ┃ BT PREV   ┃           ┃           ┃           ┃   ┃           ┃    F1     ┃    F2     ┃    F3     ┃    F10    ┃           ┃
+            // ┃           ┃           ┃           ┃           ┃           ┃           ┃   ┃           ┃    F1     ┃    F2     ┃    F3     ┃    F10    ┃           ┃
             // ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫   ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛
             //                                     ┃           ┃           ┃           ┃   ┃           ┃           ┃           ┃
             //                                     ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛   ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛
 
             bindings = <
-        &sys_reset   &bt BT_CLR  &out OUT_TOG  &trans  &trans    &trans  &kp F7  &kp F8  &kp F9  &kp F12
-        &bootloader  &bt BT_NXT  &trans        &trans  &trans    &trans  &kp F4  &kp F5  &kp F6  &kp F11
-&trans  &trans       &bt BT_PRV  &trans        &trans  &trans    &trans  &kp F1  &kp F2  &kp F3  &kp F10  &trans
-                                 &trans        &trans  &trans    &trans  &trans  &trans
+        &kp ESC  &kp RC(F5)  &trans   &trans  &trans    &trans  &kp F7  &kp F8  &kp F9  &kp F12
+        &trans   &trans      &trans   &trans  &trans    &trans  &kp F4  &kp F5  &kp F6  &kp F11
+&trans  &trans   &trans      &trans   &trans  &trans    &trans  &kp F1  &kp F2  &kp F3  &kp F10  &trans
+                             &trans   &trans  &trans    &trans  &trans  &trans
             >;
         };
         
@@ -158,20 +158,20 @@
 
             // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
             //             ┏━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┓   ┏━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┓
-            //             ┃           ┃           ┃           ┃           ┃           ┃   ┃           ┃           ┃           ┃           ┃           ┃
+            //             ┃   RESET   ┃ BT CLEAR  ┃  OUT TOG  ┃           ┃           ┃   ┃           ┃           ┃           ┃           ┃           ┃
             //             ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫   ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫
-            //             ┃           ┃           ┃           ┃           ┃           ┃   ┃           ┃    LEFT   ┃   DOWN    ┃     UP    ┃   RIGHT   ┃
+            //             ┃ BOOTLOAD  ┃ BT NEXT   ┃           ┃           ┃           ┃   ┃           ┃    LEFT   ┃   DOWN    ┃     UP    ┃   RIGHT   ┃
             // ┏━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫   ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┓
-            // ┃           ┃           ┃           ┃           ┃           ┃           ┃   ┃           ┃           ┃           ┃           ┃           ┃           ┃
+            // ┃           ┃           ┃ BT PREV   ┃           ┃           ┃           ┃   ┃           ┃           ┃           ┃           ┃           ┃           ┃
             // ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫   ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛
             //                                     ┃           ┃           ┃           ┃   ┃           ┃           ┃           ┃
             //                                     ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛   ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛
 
             bindings = <
-        &trans    &trans   &trans   &trans  &trans      &trans   &trans     &trans     &trans   &trans
-        &trans    &trans   &trans   &trans  &trans      &trans   &kp LEFT   &kp DOWN   &kp UP   &kp RIGHT
-&trans  &trans    &trans   &trans   &trans  &trans      &trans   &trans     &trans     &trans  &trans   &trans
-                           &trans   &trans  &trans      &trans   &trans     &trans
+        &sys_reset   &bt BT_CLR    &out OUT_TOG   &trans  &trans      &trans   &trans     &trans     &trans   &trans
+        &bootloader  &bt BT_NXT    &trans         &trans  &trans      &trans   &kp LEFT   &kp DOWN   &kp UP   &kp RIGHT
+&trans  &trans       &bt BT_PRV    &trans         &trans  &trans      &trans   &trans     &trans     &trans  &trans   &trans
+                                   &trans         &trans  &trans      &trans   &trans     &trans
             >;
         };
     };
