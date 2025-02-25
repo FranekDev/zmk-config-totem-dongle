@@ -110,7 +110,7 @@
             //             ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫   ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫
             //             ┃           ┃   LEFT    ┃    DOWN   ┃   RIGHT   ┃           ┃   ┃   MUTE    ┃   HOME    ┃    END    ┃    ESC    ┃     \     ┃
             // ┏━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫   ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┓
-            // ┃           ┃           ┃   P UP    ┃  C LOCK   ┃  P DOWN   ┃           ┃   ┃   VOL-    ┃   VOL+    ┃   LAST    ┃   NEXT    ┃           ┃    INS    ┃
+            // ┃           ┃           ┃   P UP    ┃  C LOCK   ┃  P DOWN   ┃           ┃   ┃   VOL-    ┃   VOL+    ┃   LAST    ┃   NEXT    ┃    DEL    ┃    INS    ┃
             // ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┫   ┣━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛
             //                                     ┃           ┃           ┃           ┃   ┃           ┃           ┃           ┃
             //                                     ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛   ┗━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛
@@ -118,7 +118,7 @@
             bindings = <
         &trans    &trans       &kp UP     &trans     &trans       &kp RC(PG_UP)   &kp LC(PG_DN)   &kp C_BRI_DN  &kp C_BRI_UP   &kp CARET
         &trans    &kp LEFT     &kp DOWN   &kp RIGHT  &trans       &kp C_MUTE      &kp HOME        &kp END       &kp ESC        &kp BSLH
-&trans  &trans    &kp PG_UP    &kp CAPS   &kp PG_DN  &trans       &kp C_VOL_DN    &kp C_VOL_UP    &kp C_PREV    &kp C_NEXT     &trans    &kp INS
+&trans  &trans    &kp PG_UP    &kp CAPS   &kp PG_DN  &trans       &kp C_VOL_DN    &kp C_VOL_UP    &kp C_PREV    &kp C_NEXT     &kp DEL    &kp INS
                                &trans     &trans     &trans       &trans          &trans          &trans
             >;
         };
