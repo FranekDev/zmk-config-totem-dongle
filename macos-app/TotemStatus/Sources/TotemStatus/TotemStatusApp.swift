@@ -16,8 +16,13 @@ struct TotemStatusApp: App {
         MenuBarExtra {
             MenuView(model: model)
         } label: {
-            // Only the TOTEM face; everything else lives in the panel.
-            Image(nsImage: TotemIcon.menuBarImage(dimmed: !model.connected))
+            // The TOTEM face, plus the active layer while it isn't a base layer.
+            HStack(spacing: 4) {
+                Image(nsImage: TotemIcon.menuBarImage(dimmed: !model.connected))
+                if model.showLayerInMenuBar, let layer = model.menuBarLayerName {
+                    Text(layer)
+                }
+            }
         }
         .menuBarExtraStyle(.window)
 
@@ -25,6 +30,13 @@ struct TotemStatusApp: App {
             LayoutWindow(model: model)
         }
         .defaultSize(width: 980, height: 460)
+        .windowResizability(.contentMinSize)
+        .defaultLaunchBehavior(.suppressed)
+
+        Window("Historia baterii", id: "battery") {
+            BatteryHistoryWindow(model: model, history: model.history)
+        }
+        .defaultSize(width: 720, height: 420)
         .windowResizability(.contentMinSize)
         .defaultLaunchBehavior(.suppressed)
     }
@@ -41,6 +53,23 @@ struct MenuView: View {
         NSApp.activate()
     }
 
+    private func showBattery() {
+        openWindow(id: "battery")
+        NSApp.activate()
+    }
+
+    private func batteryRow(_ side: Side) -> some View {
+        let left = side == .left
+        return BatteryRow(name: left ? "Lewa" : "Prawa",
+                          level: left ? model.leftBattery : model.rightBattery,
+                          voltage: left ? model.leftVoltage : model.rightVoltage,
+                          connected: left ? model.leftConnected : model.rightConnected,
+                          charging: left ? model.leftCharging : model.rightCharging,
+                          onUSB: left ? model.leftOnUSB : model.rightOnUSB,
+                          remaining: model.history.estimatedRemaining(for: side),
+                          rssi: left ? model.leftRSSI : model.rightRSSI)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 16) {
@@ -50,12 +79,20 @@ struct MenuView: View {
                     Section(title: "Tryb") { ModePicker(model: model) }
                     Section(title: "Bateria") {
                         VStack(spacing: 2) {
-                            BatteryRow(name: "Lewa połówka", level: model.leftBattery,
-                                       voltage: model.leftVoltage,
-                                       connected: model.leftConnected, charging: model.leftCharging)
-                            BatteryRow(name: "Prawa połówka", level: model.rightBattery,
-                                       voltage: model.rightVoltage,
-                                       connected: model.rightConnected, charging: model.rightCharging)
+                            batteryRow(.left)
+                            batteryRow(.right)
+                            Button(action: showBattery) {
+                                ListRow(symbol: "chart.xyaxis.line", tint: .accentColor,
+                                        title: "Historia baterii",
+                                        subtitle: "Napięcie obu połówek w czasie") {
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundStyle(.tertiary)
+                                }
+                                .contentShape(.rect(cornerRadius: 10))
+                            }
+                            .buttonStyle(.plain)
+                            .keyboardShortcut("b")
                         }
                     }
                 } else {
@@ -65,7 +102,7 @@ struct MenuView: View {
                 Section(title: "Klawiatura") {
                     Button(action: showLayout) {
                         ListRow(symbol: "keyboard", tint: .accentColor, title: "Układ klawiszy",
-                                subtitle: "Podgląd wszystkich warstw") {
+                                subtitle: "Warstwy i mapa naciśnięć") {
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundStyle(.tertiary)
@@ -81,6 +118,13 @@ struct MenuView: View {
                         SettingRow(title: "Uruchamiaj przy logowaniu", symbol: "power",
                                    isOn: Binding(get: { model.launchAtLogin },
                                                  set: { model.setLaunchAtLogin($0) }))
+                        SettingRow(title: "Tryb macOS po podłączeniu", symbol: "apple.logo",
+                                   subtitle: "Też po wybudzeniu Maca",
+                                   isOn: $model.autoMacMode)
+                        SettingRow(title: "Warstwa w pasku menu", symbol: "menubar.rectangle",
+                                   isOn: $model.showLayerInMenuBar)
+                        SettingRow(title: "Powiadomienia o baterii", symbol: "bell",
+                                   isOn: $model.notificationsEnabled)
                     }
                 }
             }
@@ -191,7 +235,7 @@ private struct ModePicker: View {
 // MARK: - Rows
 
 /// Raycast-style list row: rounded icon tile, title + subtitle, trailing accessory.
-private struct ListRow<Accessory: View>: View {
+struct ListRow<Accessory: View>: View {
     let symbol: String
     let tint: Color
     let title: String
@@ -206,7 +250,7 @@ private struct ListRow<Accessory: View>: View {
                 .frame(width: 26, height: 26)
                 .background(tint.opacity(0.15), in: .rect(cornerRadius: 7))
             VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.system(size: 13))
+                Text(title).font(.system(size: 13)).lineLimit(1)
                 if let subtitle {
                     Text(subtitle)
                         .font(.system(size: 11))
@@ -228,16 +272,31 @@ private struct BatteryRow: View {
     let voltage: Int?
     let connected: Bool
     let charging: Bool
+    /// On USB the charger drives the battery pin, so the reading is not the cell's real level.
+    var onUSB: Bool = false
+    /// Estimated time left on battery.
+    var remaining: TimeInterval? = nil
+    /// Link RSSI in dBm.
+    var rssi: Int? = nil
+
+    /// Older half firmware doesn't report USB power: a rising level (charging) means a cable too.
+    private var approximate: Bool { onUSB || charging }
 
     var body: some View {
         ListRow(symbol: symbol, tint: tint, title: name, subtitle: subtitle) {
             if let level, connected {
                 HStack(spacing: 8) {
+                    if let rssi { SignalBars(rssi: rssi) }
                     LevelBar(fraction: Double(level) / 100, tint: tint)
-                    Text("\(level)%")
+                        .opacity(approximate ? 0.45 : 1)
+                    Text(approximate ? "~\(level)%" : "\(level)%")
                         .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(approximate ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                         .monospacedDigit()
-                        .frame(width: 36, alignment: .trailing)
+                        .frame(width: 40, alignment: .trailing)
+                        .help(approximate
+                              ? "Na kablu odczyt pokazuje napięcie ładowarki, nie baterii. Prawdziwy poziom zobaczysz po odpięciu kabla."
+                              : "")
                 }
             }
         }
@@ -245,20 +304,25 @@ private struct BatteryRow: View {
 
     private var subtitle: String {
         guard connected else { return "Rozłączona" }
-        guard let voltage else { return status }
-        return status + " · " + (Double(voltage) / 1000)
-            .formatted(.number.precision(.fractionLength(2))) + " V"
+        var parts = [status]
+        if !approximate, let remaining { parts.append(formatRemaining(remaining)) }
+        if let voltage {
+            parts.append((Double(voltage) / 1000).formatted(.number.precision(.fractionLength(2))) + " V")
+        }
+        return parts.joined(separator: " · ")
     }
 
     private var status: String {
+        if onUSB { return "Na kablu" }
         if charging { return "Ładuje" }
         if let level, level == 0 { return "Naładuj baterię" }
-        if let level, level <= 20 { return "Niski poziom baterii" }
+        if let level, level <= 20 { return "Niski poziom" }
         return "Na baterii"
     }
 
     private var symbol: String {
         guard let level, connected else { return "battery.0percent" }
+        if onUSB { return "powerplug" }
         if charging { return "battery.100percent.bolt" }
         switch level {
         case 88...: return "battery.100percent"
@@ -271,10 +335,31 @@ private struct BatteryRow: View {
 
     private var tint: Color {
         guard let level, connected else { return .secondary }
+        if onUSB { return .blue }
         if charging { return .green }
         if level <= 20 { return .red }
         if level <= 40 { return .orange }
         return .green
+    }
+}
+
+/// Link quality of a half: 3 bars ≥ -65 dBm, 2 ≥ -75, 1 ≥ -85, else weak.
+private struct SignalBars: View {
+    let rssi: Int
+
+    private var fraction: Double {
+        rssi >= -65 ? 1 : rssi >= -75 ? 0.66 : rssi >= -85 ? 0.33 : 0
+    }
+
+    private var quality: String {
+        rssi >= -65 ? "bardzo dobry" : rssi >= -75 ? "dobry" : rssi >= -85 ? "słaby" : "bardzo słaby"
+    }
+
+    var body: some View {
+        Image(systemName: "cellularbars", variableValue: fraction)
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundStyle(fraction <= 0.33 ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+            .help("Sygnał do dongla: \(rssi) dBm (\(quality))")
     }
 }
 
@@ -295,10 +380,11 @@ private struct LevelBar: View {
 private struct SettingRow: View {
     let title: String
     let symbol: String
+    var subtitle: String? = nil
     let isOn: Binding<Bool>
 
     var body: some View {
-        ListRow(symbol: symbol, tint: .secondary, title: title) {
+        ListRow(symbol: symbol, tint: .secondary, title: title, subtitle: subtitle) {
             Toggle("", isOn: isOn)
                 .labelsHidden()
                 .toggleStyle(.switch)
@@ -328,13 +414,34 @@ private struct EmptyStateView: View {
 
 // MARK: - Action bar (Raycast-style footer)
 
+/// Drives the short "I got your ⌘R" animation in the footer.
+private final class RefreshFeedback: ObservableObject {
+    @Published var tick = 0
+    @Published var flash = false
+
+    func fire() {
+        tick += 1
+        withAnimation(.easeOut(duration: 0.05)) { flash = true }
+        let current = tick
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
+            guard let self, self.tick == current else { return }
+            withAnimation(.easeIn(duration: 0.2)) { self.flash = false }
+        }
+    }
+}
+
 private struct ActionBar: View {
     @ObservedObject var model: KeyboardModel
+    @StateObject private var feedback = RefreshFeedback()
 
     var body: some View {
         HStack(spacing: 4) {
-            Button { model.refresh() } label: {
-                ActionLabel(title: "Odśwież", keys: ["⌘", "R"])
+            Button {
+                model.refresh()
+                feedback.fire()
+            } label: {
+                ActionLabel(title: "Odśwież", keys: ["⌘", "R"],
+                            symbol: "arrow.clockwise", trigger: feedback.tick, flash: feedback.flash)
             }
             .keyboardShortcut("r")
 
@@ -356,9 +463,18 @@ private struct ActionBar: View {
 private struct ActionLabel: View {
     let title: String
     let keys: [String]
+    var symbol: String? = nil
+    var trigger: Int = 0
+    var flash: Bool = false
 
     var body: some View {
         HStack(spacing: 6) {
+            if let symbol {
+                Image(systemName: symbol)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(flash ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    .symbolEffect(.rotate.clockwise.byLayer, options: .speed(3), value: trigger)
+            }
             Text(title).font(.system(size: 12))
             HStack(spacing: 2) {
                 ForEach(keys, id: \.self) { key in
@@ -366,7 +482,9 @@ private struct ActionLabel: View {
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(.secondary)
                         .frame(minWidth: 16, minHeight: 16)
-                        .background(.quaternary.opacity(0.7), in: .rect(cornerRadius: 4))
+                        .background(flash ? AnyShapeStyle(.tint.opacity(0.35)) : AnyShapeStyle(.quaternary.opacity(0.7)),
+                                    in: .rect(cornerRadius: 4))
+                        .scaleEffect(flash ? 0.88 : 1)
                 }
             }
         }

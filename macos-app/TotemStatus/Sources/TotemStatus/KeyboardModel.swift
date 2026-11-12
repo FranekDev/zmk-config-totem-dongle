@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import IOKit.hid
 import ServiceManagement
@@ -9,7 +10,9 @@ enum TotemProtocol {
     static let cmdGetState: UInt8 = 0x01
     static let cmdSetOS: UInt8 = 0x02
     static let cmdToggleOS: UInt8 = 0x03
+    static let cmdGetKeyStats: UInt8 = 0x04
     static let reportState: UInt8 = 0x81
+    static let reportKeyStats: UInt8 = 0x82
     static let headerLength = 10
 }
 
@@ -26,6 +29,11 @@ final class KeyboardModel: ObservableObject {
     @Published private(set) var halvesConnected: [Bool] = []
     /// Per peripheral slot: battery voltage in millivolts, 0 = unknown (protocol v4).
     @Published private(set) var voltages: [Int] = []
+    /// Per peripheral slot: half runs on USB power (protocol v5). Its battery reading is then
+    /// the charger's voltage rather than the cell's, so the % is only approximate.
+    @Published private(set) var usbPowered: [Bool] = []
+    /// Per peripheral slot: RSSI of the half's link in dBm, 0 = unknown (protocol v6).
+    @Published private(set) var rssi: [Int] = []
     @Published private(set) var lastUpdate: Date?
     /// Per peripheral slot: true while the battery level is rising (= charging).
     @Published private(set) var charging: [Bool] = []
@@ -42,6 +50,42 @@ final class KeyboardModel: ObservableObject {
     }
 
     @Published private(set) var launchAtLogin = SMAppService.mainApp.status == .enabled
+
+    /// Switch the keyboard to macOS mode when the dongle connects or the Mac wakes up.
+    @Published var autoMacMode = UserDefaults.standard.object(forKey: "autoMacMode") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(autoMacMode, forKey: "autoMacMode")
+            if autoMacMode, isWindows { setWindows(false) }
+        }
+    }
+    @Published var showLayerInMenuBar = UserDefaults.standard.object(forKey: "showLayerInMenuBar") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(showLayerInMenuBar, forKey: "showLayerInMenuBar") }
+    }
+    @Published var notificationsEnabled = UserDefaults.standard.object(forKey: "notifications") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(notificationsEnabled, forKey: "notifications")
+            if notificationsEnabled { notifier.requestAuthorization() }
+        }
+    }
+
+    let history = BatteryHistory()
+    let keyStats = KeyStats()
+    private let notifier = Notifier()
+    /// Set by a wake from sleep: the next state report applies the auto macOS mode.
+    private var wokeUp = false
+    /// Auto macOS mode applies until then: the dongle boots in Windows mode, which may land
+    /// a moment after its first report (CONFIG_TOTEM_STATUS_BOOT_WIN).
+    private var autoMacUntil = Date.distantPast
+    private var wakeObserver: NSObjectProtocol?
+
+    /// Key stats arrive in chunks, one request per chunk.
+    private struct StatsFetch {
+        var chunk: UInt8 = 0
+        var bootId: UInt32 = 0
+        var counts: [UInt32] = []
+        let started = Date()
+    }
+    private var statsFetch: StatsFetch?
 
     private let hid = KeyboardHID()
     /// The device that answered with our magic byte (other raw-HID keyboards may match too).
@@ -66,6 +110,10 @@ final class KeyboardModel: ObservableObject {
                 self.batteries = []
                 self.halvesConnected = []
                 self.voltages = []
+                self.usbPowered = []
+                self.rssi = []
+                self.statsFetch = nil
+                self.notifier.reset()
                 self.charging = []
                 self.chargeTrackers = [:]
             }
@@ -77,8 +125,18 @@ final class KeyboardModel: ObservableObject {
             MainActor.assumeIsolated {
                 self?.refresh()
                 self?.updateCharging()
+                self?.fetchKeyStats()
             }
         }
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.wokeUp = true
+                self?.refresh()
+            }
+        }
+        if notificationsEnabled { notifier.requestAuthorization() }
     }
 
     // MARK: - Derived values
@@ -103,6 +161,21 @@ final class KeyboardModel: ObservableObject {
     var leftCharging: Bool { isCharging(at: leftSlot) }
     var rightCharging: Bool { isCharging(at: 1 - leftSlot) }
 
+    var leftOnUSB: Bool { isOnUSB(at: leftSlot) }
+    var rightOnUSB: Bool { isOnUSB(at: 1 - leftSlot) }
+
+    var leftRSSI: Int? { signal(at: leftSlot) }
+    var rightRSSI: Int? { signal(at: 1 - leftSlot) }
+
+    func slot(for side: Side) -> Int { side == .left ? leftSlot : 1 - leftSlot }
+
+    /// Layer name for the menu bar: nil on the base layers (BASE / WIN).
+    var menuBarLayerName: String? {
+        guard connected, highestLayer > 1, highestLayer < layerNames.count else { return nil }
+        let name = layerNames[highestLayer]
+        return name.hasPrefix("WIN_") ? String(name.dropFirst(4)) : name
+    }
+
     private func battery(at slot: Int) -> Int? {
         slot < batteries.count ? batteries[slot] : nil
     }
@@ -119,12 +192,28 @@ final class KeyboardModel: ObservableObject {
         slot < charging.count ? charging[slot] : false
     }
 
+    private func isOnUSB(at slot: Int) -> Bool {
+        slot < usbPowered.count ? usbPowered[slot] : false
+    }
+
+    private func signal(at slot: Int) -> Int? {
+        slot < rssi.count && rssi[slot] != 0 ? rssi[slot] : nil
+    }
+
     // MARK: - Commands
 
     func refresh() {
         for device in hid.devices {
             hid.send([TotemProtocol.magic, TotemProtocol.cmdGetState], to: device)
         }
+    }
+
+    /// Asks the dongle for its key press counters (one chunk at a time, see handleKeyStats).
+    func fetchKeyStats() {
+        guard let keyboard else { return }
+        if let f = statsFetch, Date().timeIntervalSince(f.started) < 5 { return }
+        statsFetch = StatsFetch()
+        hid.send([TotemProtocol.magic, TotemProtocol.cmdGetKeyStats, 0], to: keyboard)
     }
 
     func setWindows(_ windows: Bool) {
@@ -162,6 +251,12 @@ final class KeyboardModel: ObservableObject {
         self.halvesConnected = batteries.map { $0 > 0 }
         self.charging = charging
     }
+
+    func setPreview(voltages: [Int], usbPowered: [Bool], rssi: [Int]) {
+        self.voltages = voltages
+        self.usbPowered = usbPowered
+        self.rssi = rssi
+    }
 #endif
 
     // MARK: - Reports
@@ -170,10 +265,40 @@ final class KeyboardModel: ObservableObject {
 #if DEBUG
         if Self.previewLocked { return }
 #endif
-        guard r.count >= TotemProtocol.headerLength,
-              r[0] == TotemProtocol.magic,
-              r[1] == TotemProtocol.reportState else { return }
+        guard r.count >= TotemProtocol.headerLength, r[0] == TotemProtocol.magic else { return }
+        switch r[1] {
+        case TotemProtocol.reportState: handleState(r, from: device)
+        case TotemProtocol.reportKeyStats: handleKeyStats(r, from: device)
+        default: break
+        }
+    }
 
+    private func handleKeyStats(_ r: [UInt8], from device: IOHIDDevice) {
+        guard var f = statsFetch, device == keyboard else { return }
+        let bootId = UInt32(r[2]) | UInt32(r[3]) << 8 | UInt32(r[4]) << 16 | UInt32(r[5]) << 24
+        let total = Int(r[6]), first = Int(r[7]), count = Int(r[8])
+        guard count > 0, first == f.counts.count, 9 + 4 * count <= r.count,
+              f.chunk == 0 || bootId == f.bootId else {
+            statsFetch = nil  // out of sync (or dongle rebooted mid-fetch): try again next time
+            return
+        }
+        f.bootId = bootId
+        for i in 0..<count {
+            let o = 9 + 4 * i
+            f.counts.append(UInt32(r[o]) | UInt32(r[o + 1]) << 8 | UInt32(r[o + 2]) << 16 | UInt32(r[o + 3]) << 24)
+        }
+        if f.counts.count >= total {
+            keyStats.apply(bootId: bootId, current: f.counts)
+            statsFetch = nil
+        } else {
+            f.chunk += 1
+            statsFetch = f
+            hid.send([TotemProtocol.magic, TotemProtocol.cmdGetKeyStats, f.chunk], to: device)
+        }
+    }
+
+    private func handleState(_ r: [UInt8], from device: IOHIDDevice) {
+        let firstReport = keyboard == nil
         keyboard = device
         connected = true
         isWindows = r[3] != 0
@@ -200,12 +325,53 @@ final class KeyboardModel: ObservableObject {
         } else {
             voltages = []
         }
+        let usbOffset = voltageOffset + 2 * count
+        if r[2] >= 5, usbOffset < r.count {
+            let mask = r[usbOffset]
+            usbPowered = (0..<count).map { mask & (1 << $0) != 0 }
+        } else {
+            usbPowered = []
+        }
+        let rssiOffset = usbOffset + 1
+        if r[2] >= 6, rssiOffset + count <= r.count {
+            rssi = (0..<count).map { Int(Int8(bitPattern: r[rssiOffset + $0])) }
+        } else {
+            rssi = []
+        }
         lastUpdate = Date()
         for (slot, level) in batteries.enumerated() {
             chargeTrackers[slot, default: ChargeTracker()]
                 .record(halvesConnected[slot] ? level : nil)
         }
         updateCharging()
+        recordSides()
+
+        if firstReport || wokeUp {
+            autoMacUntil = Date().addingTimeInterval(5)
+        }
+        wokeUp = false
+        if autoMacMode && isWindows && Date() < autoMacUntil {
+            autoMacUntil = .distantPast  // once: a later manual switch to Windows stays
+            setWindows(false)
+        }
+        if firstReport { fetchKeyStats() }
+    }
+
+    /// Battery history and notifications, per physical half.
+    private func recordSides() {
+        for side in Side.allCases {
+            let slot = slot(for: side)
+            let connected = isConnected(at: slot)
+            // Right after a half connects the dongle reports 0% until it has read the battery;
+            // a real 0% comes with a voltage (halves with the voltage service).
+            let level = battery(at: slot).flatMap { $0 > 0 || voltage(at: slot) != nil ? $0 : nil }
+            let external = isOnUSB(at: slot) || isCharging(at: slot)
+            notifier.update(side: side, connected: connected, level: connected ? level : nil,
+                            external: external, enabled: notificationsEnabled)
+            if connected, let level {
+                history.record(side: side, mv: voltage(at: slot) ?? 0, level: level, external: external)
+            }
+        }
     }
 
     private func updateCharging() {

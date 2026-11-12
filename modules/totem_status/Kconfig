@@ -9,6 +9,15 @@ config TOTEM_STATUS_WIN_LAYER
     int "Layer index that represents Windows mode"
     default 1
 
+config TOTEM_STATUS_WIN_FALLBACK_MS
+    int "Switch to Windows mode when the macOS app stays silent this long after boot (0 = off)"
+    default 0
+    help
+      The dongle has no battery, so it boots every time it is plugged in. It starts in
+      macOS mode; the macOS app talks to it within a second or so. If no command arrives
+      from the host within this time, it's a machine without the app (Windows) and the
+      Windows layer is activated. Once per boot only.
+
 endif
 
 config TOTEM_BATTERY_LIPO

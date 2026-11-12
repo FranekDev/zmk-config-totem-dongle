@@ -18,7 +18,15 @@ Host -> dongle: `[0xA7, cmd, arg]`, cmd: `0x01` get state, `0x02` set OS (arg 0 
 
 Dongle -> host: `[0xA7, 0x81, ver, win, highest_layer, layer_mask(4, LE), N, battery[N]...]`.
 After the batteries: `connected_mask` (v2+), `left_slot` (v3+, 0xFF = unknown), then
-`voltage_mv[N]` as uint16 LE (v4+, 0 = unknown).
+`voltage_mv[N]` as uint16 LE (v4+, 0 = unknown), then a bitmask of halves on USB power (v5+;
+their % is shown as approximate, since on USB the charger drives the battery pin), then the
+RSSI of each half's link as int8 dBm (v6+, 0 = unknown).
+
+Key press counts (v6+): host sends `[0xA7, 0x04, chunk]`, dongle answers
+`[0xA7, 0x82, boot_id(4, LE), total, first, count, count × uint32 LE]`, cumulative per key position
+since the dongle booted. The app asks chunk by chunk and adds the difference to its own totals
+(`~/Library/Application Support/TotemStatus/key-stats.json`); a new boot id means the counters
+restarted. Battery history lives next to it in `battery-history.json` (30 days).
 
 - `0` battery means nearly empty, not disconnected; use `connected_mask` for that.
 - Slot order follows pairing order; the dongle learns which slot is the left half from the first

@@ -6,12 +6,13 @@
  *
  * Host -> keyboard:
  *   [0] 0xA7 magic
- *   [1] command: 0x01 GET_STATE, 0x02 SET_OS ([2] = 0 mac, 1 win), 0x03 TOGGLE_OS
+ *   [1] command: 0x01 GET_STATE, 0x02 SET_OS ([2] = 0 mac, 1 win), 0x03 TOGGLE_OS,
+ *       0x04 GET_KEY_STATS ([2] = chunk index)
  *
  * Keyboard -> host (sent on request and whenever something changes):
  *   [0]    0xA7 magic
  *   [1]    0x81 STATE
- *   [2]    protocol version (4)
+ *   [2]    protocol version (6)
  *   [3]    1 when the Windows layer is active
  *   [4]    highest active layer index
  *   [5..8] active layer bitmask, little endian
@@ -22,8 +23,22 @@
  *          the first key press on a half, since slots follow pairing order
  *   [12+N..] battery voltage in mV per peripheral slot, uint16 little endian,
  *          0 = unknown (v4+, needs the halves to run TOTEM_BATTERY_VOLTAGE_SERVICE)
+ *   [12+3N] bitmask of peripheral slots running on USB power (v5+); the battery
+ *          reading of such a half is the charger's voltage, not the cell's
+ *   [13+3N..] RSSI of each half's link in dBm, int8, 0 = unknown (v6+)
+ *
+ * Key press counts (reply to GET_KEY_STATS, v6+):
+ *   [0]    0xA7 magic
+ *   [1]    0x82 KEY_STATS
+ *   [2..5] boot id, uint32 LE: random per dongle boot; counts restart from 0 when it changes
+ *   [6]    total number of key positions
+ *   [7]    first position in this chunk
+ *   [8]    number of positions in this chunk (0 when the chunk index is past the end)
+ *   [9..]  press count per position, uint32 LE, cumulative since boot
+ * Only positions are counted (no order or timing), like a per-key odometer.
  */
 
+#include <stdlib.h>
 #include <string.h>
 
 #include <zephyr/sys/byteorder.h>
@@ -38,6 +53,13 @@
 #include <zmk/events/usb_conn_state_changed.h>
 #include <zmk/events/position_state_changed.h>
 #include <zmk/keymap.h>
+#include <zmk/matrix.h>
+
+#if __has_include(<zephyr/random/random.h>)
+#include <zephyr/random/random.h>
+#else
+#include <zephyr/random/rand32.h>
+#endif
 
 #include <raw_hid/events.h>
 
@@ -46,6 +68,7 @@
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/gatt.h>
+#include <zephyr/bluetooth/hci.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zmk/ble.h>
 #endif
@@ -53,13 +76,15 @@
 LOG_MODULE_REGISTER(totem_status, CONFIG_ZMK_LOG_LEVEL);
 
 #define TS_MAGIC 0xA7
-#define TS_PROTOCOL_VERSION 4
+#define TS_PROTOCOL_VERSION 6
 
 #define TS_CMD_GET_STATE 0x01
 #define TS_CMD_SET_OS 0x02
 #define TS_CMD_TOGGLE_OS 0x03
+#define TS_CMD_GET_KEY_STATS 0x04
 
 #define TS_REPORT_STATE 0x81
+#define TS_REPORT_KEY_STATS 0x82
 
 #define TS_WIN_LAYER CONFIG_TOTEM_STATUS_WIN_LAYER
 
@@ -71,11 +96,25 @@ LOG_MODULE_REGISTER(totem_status, CONFIG_ZMK_LOG_LEVEL);
 
 #define TS_HEADER_LEN 10
 #define TS_VOLTAGE_OFFSET (TS_HEADER_LEN + TS_PERIPHERALS + 2)
-BUILD_ASSERT(TS_VOLTAGE_OFFSET + 2 * TS_PERIPHERALS <= CONFIG_RAW_HID_REPORT_SIZE,
+#define TS_USB_OFFSET (TS_VOLTAGE_OFFSET + 2 * TS_PERIPHERALS)
+#define TS_RSSI_OFFSET (TS_USB_OFFSET + 1)
+BUILD_ASSERT(TS_RSSI_OFFSET + TS_PERIPHERALS <= CONFIG_RAW_HID_REPORT_SIZE,
              "Raw HID report too small for all peripheral battery levels");
 
 static uint8_t battery_levels[TS_PERIPHERALS > 0 ? TS_PERIPHERALS : 1];
 static uint16_t battery_mv[TS_PERIPHERALS > 0 ? TS_PERIPHERALS : 1];
+static uint8_t usb_powered_mask;
+static int8_t link_rssi[TS_PERIPHERALS > 0 ? TS_PERIPHERALS : 1];
+
+/* ---- key press counts -------------------------------------------------- */
+
+#define TS_KEY_POSITIONS ZMK_KEYMAP_LEN
+BUILD_ASSERT(TS_KEY_POSITIONS <= 255, "Too many key positions for the key stats report");
+#define TS_KEY_STATS_HEADER 9
+#define TS_KEY_STATS_PER_CHUNK ((CONFIG_RAW_HID_REPORT_SIZE - TS_KEY_STATS_HEADER) / 4)
+
+static uint32_t key_presses[TS_KEY_POSITIONS];
+static uint32_t boot_id;
 static zmk_keymap_layers_state_t last_sent_layers;
 
 /*
@@ -148,11 +187,37 @@ static void send_state(void) {
     for (int i = 0; i < TS_PERIPHERALS; i++) {
         if (!(connected & BIT(i))) {
             battery_mv[i] = 0; /* stale once the half is gone */
+            usb_powered_mask &= ~BIT(i);
+            link_rssi[i] = 0;
         }
         sys_put_le16(battery_mv[i], &report[TS_VOLTAGE_OFFSET + 2 * i]);
+        report[TS_RSSI_OFFSET + i] = (uint8_t)link_rssi[i];
     }
+    report[TS_USB_OFFSET] = usb_powered_mask;
 
     last_sent_layers = layers;
+    raise_raw_hid_sent_event(
+        (struct raw_hid_sent_event){.data = report, .length = sizeof(report)});
+}
+
+static void send_key_stats(uint8_t chunk) {
+    /* Static: the USB driver may DMA from it after raise returns. The host asks for
+     * one chunk at a time and waits for the reply, so it is never reused too early. */
+    static uint8_t report[CONFIG_RAW_HID_REPORT_SIZE];
+    memset(report, 0, sizeof(report));
+
+    uint32_t first = (uint32_t)chunk * TS_KEY_STATS_PER_CHUNK;
+    uint32_t count =
+        first < TS_KEY_POSITIONS ? MIN(TS_KEY_STATS_PER_CHUNK, TS_KEY_POSITIONS - first) : 0;
+    report[0] = TS_MAGIC;
+    report[1] = TS_REPORT_KEY_STATS;
+    sys_put_le32(boot_id, &report[2]);
+    report[6] = TS_KEY_POSITIONS;
+    report[7] = MIN(first, 255);
+    report[8] = count;
+    for (uint32_t i = 0; i < count; i++) {
+        sys_put_le32(key_presses[first + i], &report[TS_KEY_STATS_HEADER + 4 * i]);
+    }
     raise_raw_hid_sent_event(
         (struct raw_hid_sent_event){.data = report, .length = sizeof(report)});
 }
@@ -203,6 +268,16 @@ static void handle_voltage(uint8_t slot, const uint8_t *data, uint16_t length) {
     if (battery_mv[slot] != mv) {
         LOG_DBG("Polled battery voltage %d mV for peripheral %d", mv, slot);
         battery_mv[slot] = mv;
+        schedule_send(K_MSEC(100));
+    }
+
+    /* Flags byte: only newer halves send it, older ones count as on battery. */
+    uint8_t usb_mask = usb_powered_mask & ~BIT(slot);
+    if (length >= 3 && (data[2] & BIT(0))) {
+        usb_mask |= BIT(slot);
+    }
+    if (usb_mask != usb_powered_mask) {
+        usb_powered_mask = usb_mask;
         schedule_send(K_MSEC(100));
     }
 }
@@ -261,6 +336,64 @@ static void poll_peripheral(struct bt_conn *conn, void *user_data) {
     start_read(conn, &voltage_reads[slot], slot);
 }
 
+/* ---- link quality ------------------------------------------------------ */
+
+#define TS_RSSI_POLL_INTERVAL K_SECONDS(10)
+/* Smaller swings are just noise: don't wake the host for them. */
+#define TS_RSSI_REPORT_DELTA 3
+
+static int read_rssi(struct bt_conn *conn, int8_t *rssi) {
+    uint16_t handle;
+    int err = bt_hci_get_conn_handle(conn, &handle);
+    if (err) {
+        return err;
+    }
+
+    struct net_buf *buf =
+        bt_hci_cmd_create(BT_HCI_OP_READ_RSSI, sizeof(struct bt_hci_cp_read_rssi));
+    if (!buf) {
+        return -ENOBUFS;
+    }
+    struct bt_hci_cp_read_rssi *cp = net_buf_add(buf, sizeof(*cp));
+    cp->handle = sys_cpu_to_le16(handle);
+
+    struct net_buf *rsp;
+    err = bt_hci_cmd_send_sync(BT_HCI_OP_READ_RSSI, buf, &rsp);
+    if (err) {
+        return err;
+    }
+    const struct bt_hci_rp_read_rssi *rp = (const void *)rsp->data;
+    err = rp->status ? -EIO : 0;
+    if (!err) {
+        *rssi = rp->rssi;
+    }
+    net_buf_unref(rsp);
+    return err;
+}
+
+static void poll_rssi(struct bt_conn *conn, void *user_data) {
+    int slot = peripheral_slot(conn);
+    int8_t rssi;
+    if (slot < 0 || read_rssi(conn, &rssi) != 0 || rssi == 127 /* not available */) {
+        return;
+    }
+    /* 0 means unknown in the report; a real link is always below 0 dBm. */
+    rssi = MIN(rssi, -1);
+    int8_t old = link_rssi[slot];
+    if (old == 0 || abs(rssi - old) >= TS_RSSI_REPORT_DELTA) {
+        link_rssi[slot] = rssi;
+        schedule_send(K_MSEC(100));
+    }
+}
+
+static void rssi_poll_work_cb(struct k_work *work);
+static K_WORK_DELAYABLE_DEFINE(rssi_poll_work, rssi_poll_work_cb);
+
+static void rssi_poll_work_cb(struct k_work *work) {
+    bt_conn_foreach(BT_CONN_TYPE_LE, poll_rssi, NULL);
+    k_work_schedule(&rssi_poll_work, TS_RSSI_POLL_INTERVAL);
+}
+
 static void battery_poll_work_cb(struct k_work *work);
 static K_WORK_DELAYABLE_DEFINE(battery_poll_work, battery_poll_work_cb);
 
@@ -274,6 +407,7 @@ static void ts_connected(struct bt_conn *conn, uint8_t err) {
     if (!err) {
         schedule_send(K_MSEC(200));
         k_work_reschedule(&battery_poll_work, K_SECONDS(3));
+        k_work_reschedule(&rssi_poll_work, K_SECONDS(2));
     }
 }
 
@@ -284,13 +418,28 @@ BT_CONN_CB_DEFINE(totem_status_conn_cb) = {
     .disconnected = ts_disconnected,
 };
 
-static int totem_status_init(void) {
+static int totem_status_ble_init(void) {
     k_work_schedule(&battery_poll_work, K_SECONDS(5));
+    k_work_schedule(&rssi_poll_work, K_SECONDS(5));
     return 0;
 }
 
-SYS_INIT(totem_status_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
+SYS_INIT(totem_status_ble_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
+#endif
+
+/* ---- Windows fallback ---------------------------------------------------
+ *
+ * Start in macOS mode and wait for the macOS app. A host that never sends us a
+ * command within CONFIG_TOTEM_STATUS_WIN_FALLBACK_MS has no app: Windows.
+ */
+#if CONFIG_TOTEM_STATUS_WIN_FALLBACK_MS > 0
+static void win_fallback_work_cb(struct k_work *work) {
+    LOG_INF("No host app after boot, switching to Windows mode");
+    zmk_keymap_layer_activate(TS_WIN_LAYER, false);
+    schedule_send(K_MSEC(10));
+}
+static K_WORK_DELAYABLE_DEFINE(win_fallback_work, win_fallback_work_cb);
 #endif
 
 /* ---- incoming commands ------------------------------------------------- */
@@ -305,6 +454,10 @@ K_MSGQ_DEFINE(ts_cmd_msgq, sizeof(struct ts_command), 4, 1);
 static void command_work_cb(struct k_work *work) {
     struct ts_command c;
     while (k_msgq_get(&ts_cmd_msgq, &c, K_NO_WAIT) == 0) {
+#if CONFIG_TOTEM_STATUS_WIN_FALLBACK_MS > 0
+        /* The macOS app is here: stay in macOS mode. */
+        k_work_cancel_delayable(&win_fallback_work);
+#endif
         switch (c.cmd) {
         case TS_CMD_GET_STATE:
             break;
@@ -318,6 +471,9 @@ static void command_work_cb(struct k_work *work) {
         case TS_CMD_TOGGLE_OS:
             zmk_keymap_layer_toggle(TS_WIN_LAYER, false);
             break;
+        case TS_CMD_GET_KEY_STATS:
+            send_key_stats(c.arg);
+            continue; /* no state report */
         default:
             LOG_WRN("Unknown totem status command 0x%02x", c.cmd);
             continue;
@@ -371,6 +527,9 @@ static int state_listener(const zmk_event_t *eh) {
 
     const struct zmk_position_state_changed *pos_ev = as_zmk_position_state_changed(eh);
     if (pos_ev) {
+        if (pos_ev->state && pos_ev->position < TS_KEY_POSITIONS) {
+            key_presses[pos_ev->position]++;
+        }
         if (pos_ev->state && pos_ev->source < TS_PERIPHERALS && pos_ev->position < 64) {
             bool left = (TS_LEFT_POSITIONS >> pos_ev->position) & 1;
             uint8_t slot = left ? pos_ev->source
@@ -401,3 +560,13 @@ ZMK_SUBSCRIPTION(totem_status_state, zmk_peripheral_battery_state_changed);
 #endif
 ZMK_SUBSCRIPTION(totem_status_state, zmk_usb_conn_state_changed);
 ZMK_SUBSCRIPTION(totem_status_state, zmk_position_state_changed);
+
+static int totem_status_init(void) {
+    boot_id = sys_rand32_get();
+#if CONFIG_TOTEM_STATUS_WIN_FALLBACK_MS > 0
+    k_work_schedule(&win_fallback_work, K_MSEC(CONFIG_TOTEM_STATUS_WIN_FALLBACK_MS));
+#endif
+    return 0;
+}
+
+SYS_INIT(totem_status_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
