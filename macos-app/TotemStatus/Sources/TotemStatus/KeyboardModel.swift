@@ -24,13 +24,21 @@ final class KeyboardModel: ObservableObject {
     @Published private(set) var batteries: [Int] = []
     /// Per peripheral slot: whether the half is connected to the dongle.
     @Published private(set) var halvesConnected: [Bool] = []
+    /// Per peripheral slot: battery voltage in millivolts, 0 = unknown (protocol v4).
+    @Published private(set) var voltages: [Int] = []
     @Published private(set) var lastUpdate: Date?
     /// Per peripheral slot: true while the battery level is rising (= charging).
     @Published private(set) var charging: [Bool] = []
 
-    /// Peripheral slot order on the dongle depends on pairing order, so let the user swap them.
-    @AppStorage("swapHalves") var swapHalves = false {
-        willSet { objectWillChange.send() }
+    /// Peripheral slot of the left half. Slot order on the dongle follows pairing order, so
+    /// the dongle learns it from the first key press on a half (protocol v3). The last known
+    /// value is remembered for when the dongle restarts and doesn't know it yet.
+    @Published private(set) var leftSlot: Int = KeyboardModel.storedLeftSlot
+    private static let leftSlotKey = "leftSlot"
+    private static var storedLeftSlot: Int {
+        let d = UserDefaults.standard
+        if d.object(forKey: leftSlotKey) != nil { return d.integer(forKey: leftSlotKey) }
+        return d.bool(forKey: "swapHalves") ? 1 : 0  // value of the old manual setting
     }
 
     @Published private(set) var launchAtLogin = SMAppService.mainApp.status == .enabled
@@ -57,6 +65,7 @@ final class KeyboardModel: ObservableObject {
                 self.connected = false
                 self.batteries = []
                 self.halvesConnected = []
+                self.voltages = []
                 self.charging = []
                 self.chargeTrackers = [:]
             }
@@ -74,11 +83,14 @@ final class KeyboardModel: ObservableObject {
 
     // MARK: - Derived values
 
-    var leftBattery: Int? { battery(at: swapHalves ? 1 : 0) }
-    var rightBattery: Int? { battery(at: swapHalves ? 0 : 1) }
+    var leftBattery: Int? { battery(at: leftSlot) }
+    var rightBattery: Int? { battery(at: 1 - leftSlot) }
 
-    var leftConnected: Bool { isConnected(at: swapHalves ? 1 : 0) }
-    var rightConnected: Bool { isConnected(at: swapHalves ? 0 : 1) }
+    var leftVoltage: Int? { voltage(at: leftSlot) }
+    var rightVoltage: Int? { voltage(at: 1 - leftSlot) }
+
+    var leftConnected: Bool { isConnected(at: leftSlot) }
+    var rightConnected: Bool { isConnected(at: 1 - leftSlot) }
 
     var lowestBattery: Int? {
         batteries.indices.filter { isConnected(at: $0) }.map { batteries[$0] }.min()
@@ -88,11 +100,15 @@ final class KeyboardModel: ObservableObject {
         highestLayer < layerNames.count ? layerNames[highestLayer] : "Layer \(highestLayer)"
     }
 
-    var leftCharging: Bool { isCharging(at: swapHalves ? 1 : 0) }
-    var rightCharging: Bool { isCharging(at: swapHalves ? 0 : 1) }
+    var leftCharging: Bool { isCharging(at: leftSlot) }
+    var rightCharging: Bool { isCharging(at: 1 - leftSlot) }
 
     private func battery(at slot: Int) -> Int? {
         slot < batteries.count ? batteries[slot] : nil
+    }
+
+    private func voltage(at slot: Int) -> Int? {
+        slot < voltages.count && voltages[slot] > 0 ? voltages[slot] : nil
     }
 
     private func isConnected(at slot: Int) -> Bool {
@@ -171,6 +187,18 @@ final class KeyboardModel: ObservableObject {
             halvesConnected = batteries.indices.map { mask & (1 << $0) != 0 }
         } else {
             halvesConnected = batteries.map { $0 > 0 }
+        }
+        if r[2] >= 3, end + 1 < r.count, r[end + 1] < 2, Int(r[end + 1]) != leftSlot {
+            leftSlot = Int(r[end + 1])
+            UserDefaults.standard.set(leftSlot, forKey: Self.leftSlotKey)
+        }
+        let voltageOffset = end + 2
+        if r[2] >= 4, voltageOffset + 2 * count <= r.count {
+            voltages = (0..<count).map {
+                Int(r[voltageOffset + 2 * $0]) | Int(r[voltageOffset + 2 * $0 + 1]) << 8
+            }
+        } else {
+            voltages = []
         }
         lastUpdate = Date()
         for (slot, level) in batteries.enumerated() {

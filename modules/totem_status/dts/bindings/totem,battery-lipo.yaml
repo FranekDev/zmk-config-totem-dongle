@@ -1,0 +1,12 @@
+description: |
+  Battery state of charge from a LiPo discharge curve instead of ZMK's linear
+  3.45-4.2 V approximation. Wraps another battery sensor that measures voltage
+  (e.g. zmk,battery-voltage-divider) and is meant to be the zmk,battery chosen node.
+
+compatible: "totem,battery-lipo"
+
+properties:
+  battery:
+    type: phandle
+    required: true
+    description: Battery sensor providing SENSOR_CHAN_GAUGE_VOLTAGE.

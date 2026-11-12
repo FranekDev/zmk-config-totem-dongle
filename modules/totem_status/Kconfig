@@ -10,3 +10,15 @@ config TOTEM_STATUS_WIN_LAYER
     default 1
 
 endif
+
+config TOTEM_BATTERY_LIPO
+    bool "Battery state of charge from a LiPo discharge curve"
+    default y
+    depends on DT_HAS_TOTEM_BATTERY_LIPO_ENABLED
+    depends on SENSOR
+
+config TOTEM_BATTERY_VOLTAGE_SERVICE
+    bool "Expose the battery voltage to the central over GATT (for split halves)"
+    depends on BT_PERIPHERAL
+    depends on ZMK_BATTERY_REPORTING
+    depends on !ZMK_SPLIT_ROLE_CENTRAL

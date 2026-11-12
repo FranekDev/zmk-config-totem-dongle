@@ -11,16 +11,22 @@
  * Keyboard -> host (sent on request and whenever something changes):
  *   [0]    0xA7 magic
  *   [1]    0x81 STATE
- *   [2]    protocol version (2)
+ *   [2]    protocol version (4)
  *   [3]    1 when the Windows layer is active
  *   [4]    highest active layer index
  *   [5..8] active layer bitmask, little endian
  *   [9]    N = number of peripheral slots
  *   [10..] battery % per peripheral slot (0 = empty, disconnected or unknown)
  *   [10+N] bitmask of connected peripheral slots (v2+)
+ *   [11+N] peripheral slot of the LEFT half, 0xFF while unknown (v3+); learned from
+ *          the first key press on a half, since slots follow pairing order
+ *   [12+N..] battery voltage in mV per peripheral slot, uint16 little endian,
+ *          0 = unknown (v4+, needs the halves to run TOTEM_BATTERY_VOLTAGE_SERVICE)
  */
 
 #include <string.h>
+
+#include <zephyr/sys/byteorder.h>
 
 #include <zephyr/kernel.h>
 #include <zephyr/init.h>
@@ -30,9 +36,12 @@
 #include <zmk/events/layer_state_changed.h>
 #include <zmk/events/battery_state_changed.h>
 #include <zmk/events/usb_conn_state_changed.h>
+#include <zmk/events/position_state_changed.h>
 #include <zmk/keymap.h>
 
 #include <raw_hid/events.h>
+
+#include <totem_status/uuids.h>
 
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
 #include <zephyr/bluetooth/conn.h>
@@ -44,7 +53,7 @@
 LOG_MODULE_REGISTER(totem_status, CONFIG_ZMK_LOG_LEVEL);
 
 #define TS_MAGIC 0xA7
-#define TS_PROTOCOL_VERSION 2
+#define TS_PROTOCOL_VERSION 4
 
 #define TS_CMD_GET_STATE 0x01
 #define TS_CMD_SET_OS 0x02
@@ -61,11 +70,23 @@ LOG_MODULE_REGISTER(totem_status, CONFIG_ZMK_LOG_LEVEL);
 #endif
 
 #define TS_HEADER_LEN 10
-BUILD_ASSERT(TS_HEADER_LEN + TS_PERIPHERALS + 1 <= CONFIG_RAW_HID_REPORT_SIZE,
+#define TS_VOLTAGE_OFFSET (TS_HEADER_LEN + TS_PERIPHERALS + 2)
+BUILD_ASSERT(TS_VOLTAGE_OFFSET + 2 * TS_PERIPHERALS <= CONFIG_RAW_HID_REPORT_SIZE,
              "Raw HID report too small for all peripheral battery levels");
 
 static uint8_t battery_levels[TS_PERIPHERALS > 0 ? TS_PERIPHERALS : 1];
+static uint16_t battery_mv[TS_PERIPHERALS > 0 ? TS_PERIPHERALS : 1];
 static int last_sent_win = -1;
+
+/*
+ * Key positions (physical layout order, see totem-layouts.dtsi) on the left half:
+ * 0-4, 10-14, 20-25 (incl. the outer pinky key), 32-34.
+ */
+#define TS_LEFT_POSITIONS                                                                         \
+    ((uint64_t)BIT64_MASK(5) | (BIT64_MASK(5) << 10) | (BIT64_MASK(6) << 20) |                     \
+     (BIT64_MASK(3) << 32))
+#define TS_SLOT_UNKNOWN 0xFF
+static uint8_t left_slot = TS_SLOT_UNKNOWN;
 
 /* ---- peripheral connections -------------------------------------------- */
 
@@ -121,7 +142,15 @@ static void send_state(void) {
     for (int i = 0; i < TS_PERIPHERALS; i++) {
         report[TS_HEADER_LEN + i] = battery_levels[i];
     }
-    report[TS_HEADER_LEN + TS_PERIPHERALS] = connected_mask();
+    uint8_t connected = connected_mask();
+    report[TS_HEADER_LEN + TS_PERIPHERALS] = connected;
+    report[TS_HEADER_LEN + TS_PERIPHERALS + 1] = left_slot;
+    for (int i = 0; i < TS_PERIPHERALS; i++) {
+        if (!(connected & BIT(i))) {
+            battery_mv[i] = 0; /* stale once the half is gone */
+        }
+        sys_put_le16(battery_mv[i], &report[TS_VOLTAGE_OFFSET + 2 * i]);
+    }
 
     last_sent_win = win;
     raise_raw_hid_sent_event(
@@ -138,60 +167,75 @@ static void schedule_send(k_timeout_t delay) { k_work_reschedule(&send_state_wor
  * Workaround for ZMK main: after a half reconnects (e.g. wakes from sleep) the
  * central keeps a stale battery characteristic handle, stops GATT discovery
  * early and never reads/subscribes the battery level again, so it stays 0.
- * We read the Battery Level characteristic by UUID ourselves on a timer.
+ * We read the Battery Level characteristic by UUID ourselves on a timer, plus
+ * the battery voltage our halves expose (TOTEM_BATTERY_VOLTAGE_SERVICE).
  */
 #if TS_PERIPHERALS > 0 && IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
 
-#define TS_BATTERY_POLL_INTERVAL K_SECONDS(30)
+/* The halves sample their battery every CONFIG_ZMK_BATTERY_REPORT_INTERVAL (60 s by default). */
+#define TS_BATTERY_POLL_INTERVAL K_SECONDS(60)
 #define TS_BATTERY_READ_TIMEOUT_MS 10000
 
-struct ts_battery_read {
+struct ts_read {
     struct bt_gatt_read_params params;
+    const struct bt_uuid *uuid;
+    void (*handle)(uint8_t slot, const uint8_t *data, uint16_t length);
     uint8_t slot;
     bool busy;
     int64_t started;
 };
 
-static struct ts_battery_read battery_reads[TS_PERIPHERALS];
+static void handle_level(uint8_t slot, const uint8_t *data, uint16_t length) {
+    /* 0 is a valid reading too: a nearly empty half reports 0%. */
+    uint8_t level = data[0];
+    if (level <= 100 && battery_levels[slot] != level) {
+        LOG_DBG("Polled battery level %d%% for peripheral %d", level, slot);
+        battery_levels[slot] = level;
+        schedule_send(K_MSEC(100));
+    }
+}
 
-static uint8_t battery_read_cb(struct bt_conn *conn, uint8_t err,
-                               struct bt_gatt_read_params *params, const void *data,
-                               uint16_t length) {
-    struct ts_battery_read *r = CONTAINER_OF(params, struct ts_battery_read, params);
+static void handle_voltage(uint8_t slot, const uint8_t *data, uint16_t length) {
+    if (length < 2) {
+        return;
+    }
+    uint16_t mv = sys_get_le16(data);
+    if (battery_mv[slot] != mv) {
+        LOG_DBG("Polled battery voltage %d mV for peripheral %d", mv, slot);
+        battery_mv[slot] = mv;
+        schedule_send(K_MSEC(100));
+    }
+}
+
+static const struct bt_uuid_128 voltage_uuid = BT_UUID_INIT_128(TOTEM_BATTERY_VOLTAGE_CHAR_UUID);
+
+static struct ts_read level_reads[TS_PERIPHERALS];
+static struct ts_read voltage_reads[TS_PERIPHERALS];
+
+static uint8_t read_cb(struct bt_conn *conn, uint8_t err, struct bt_gatt_read_params *params,
+                       const void *data, uint16_t length) {
+    struct ts_read *r = CONTAINER_OF(params, struct ts_read, params);
     r->busy = false;
 
-    if (err || data == NULL || length < 1) {
-        return BT_GATT_ITER_STOP;
-    }
-
-    /* 0 is a valid reading too: a nearly empty half (<= 3.45 V) reports 0%. */
-    uint8_t level = ((const uint8_t *)data)[0];
-    if (level <= 100 && battery_levels[r->slot] != level) {
-        LOG_DBG("Polled battery level %d%% for peripheral %d", level, r->slot);
-        battery_levels[r->slot] = level;
-        schedule_send(K_MSEC(100));
+    /* Halves with older firmware have no voltage characteristic: that's just an error here. */
+    if (!err && data != NULL && length >= 1) {
+        r->handle(r->slot, data, length);
     }
     return BT_GATT_ITER_STOP;
 }
 
-static void poll_peripheral(struct bt_conn *conn, void *user_data) {
-    int slot = peripheral_slot(conn);
-    if (slot < 0) {
-        return;
-    }
-
-    struct ts_battery_read *r = &battery_reads[slot];
+static void start_read(struct bt_conn *conn, struct ts_read *r, uint8_t slot) {
     if (r->busy && k_uptime_get() - r->started < TS_BATTERY_READ_TIMEOUT_MS) {
         return;
     }
 
     memset(&r->params, 0, sizeof(r->params));
     r->slot = slot;
-    r->params.func = battery_read_cb;
+    r->params.func = read_cb;
     r->params.handle_count = 0; /* read by UUID */
     r->params.by_uuid.start_handle = BT_ATT_FIRST_ATTRIBUTE_HANDLE;
     r->params.by_uuid.end_handle = BT_ATT_LAST_ATTRIBUTE_HANDLE;
-    r->params.by_uuid.uuid = BT_UUID_BAS_BATTERY_LEVEL;
+    r->params.by_uuid.uuid = r->uuid;
     r->busy = true;
     r->started = k_uptime_get();
 
@@ -200,6 +244,21 @@ static void poll_peripheral(struct bt_conn *conn, void *user_data) {
         LOG_DBG("Battery read for peripheral %d failed: %d", slot, err);
         r->busy = false;
     }
+}
+
+static void poll_peripheral(struct bt_conn *conn, void *user_data) {
+    int slot = peripheral_slot(conn);
+    if (slot < 0) {
+        return;
+    }
+
+    level_reads[slot].uuid = BT_UUID_BAS_BATTERY_LEVEL;
+    level_reads[slot].handle = handle_level;
+    start_read(conn, &level_reads[slot], slot);
+
+    voltage_reads[slot].uuid = &voltage_uuid.uuid;
+    voltage_reads[slot].handle = handle_voltage;
+    start_read(conn, &voltage_reads[slot], slot);
 }
 
 static void battery_poll_work_cb(struct k_work *work);
@@ -309,6 +368,21 @@ static int state_listener(const zmk_event_t *eh) {
     }
 #endif
 
+    const struct zmk_position_state_changed *pos_ev = as_zmk_position_state_changed(eh);
+    if (pos_ev) {
+        if (pos_ev->state && pos_ev->source < TS_PERIPHERALS && pos_ev->position < 64) {
+            bool left = (TS_LEFT_POSITIONS >> pos_ev->position) & 1;
+            uint8_t slot = left ? pos_ev->source
+                                : (TS_PERIPHERALS == 2 ? 1 - pos_ev->source : TS_SLOT_UNKNOWN);
+            if (slot != TS_SLOT_UNKNOWN && slot != left_slot) {
+                LOG_DBG("Left half is peripheral slot %d", slot);
+                left_slot = slot;
+                schedule_send(K_MSEC(100));
+            }
+        }
+        return ZMK_EV_EVENT_BUBBLE;
+    }
+
     const struct zmk_usb_conn_state_changed *usb_ev = as_zmk_usb_conn_state_changed(eh);
     if (usb_ev) {
         /* Give the host time to enumerate before pushing the first report. */
@@ -325,3 +399,4 @@ ZMK_SUBSCRIPTION(totem_status_state, zmk_layer_state_changed);
 ZMK_SUBSCRIPTION(totem_status_state, zmk_peripheral_battery_state_changed);
 #endif
 ZMK_SUBSCRIPTION(totem_status_state, zmk_usb_conn_state_changed);
+ZMK_SUBSCRIPTION(totem_status_state, zmk_position_state_changed);

@@ -17,7 +17,15 @@ Works with Command Line Tools only (no Xcode needed). macOS 26+.
 Host -> dongle: `[0xA7, cmd, arg]`, cmd: `0x01` get state, `0x02` set OS (arg 0 = mac, 1 = win), `0x03` toggle.
 
 Dongle -> host: `[0xA7, 0x81, ver, win, highest_layer, layer_mask(4, LE), N, battery[N]...]`.
-Battery `0` means the half is disconnected. Slot order follows pairing order; use "Zamień lewą i prawą" if swapped.
+After the batteries: `connected_mask` (v2+), `left_slot` (v3+, 0xFF = unknown), then
+`voltage_mv[N]` as uint16 LE (v4+, 0 = unknown).
+
+- `0` battery means nearly empty, not disconnected; use `connected_mask` for that.
+- Slot order follows pairing order; the dongle learns which slot is the left half from the first
+  key press on a half.
+- Battery % on the halves comes from a LiPo discharge curve (`totem,battery-lipo` sensor in
+  `modules/totem_status`) instead of ZMK's linear 3.45–4.2 V scale, and the halves expose the
+  voltage over GATT. Both need the halves reflashed; with older half firmware the voltage is 0.
 
 ## Icons
 

@@ -51,8 +51,10 @@ struct MenuView: View {
                     Section(title: "Bateria") {
                         VStack(spacing: 2) {
                             BatteryRow(name: "Lewa połówka", level: model.leftBattery,
+                                       voltage: model.leftVoltage,
                                        connected: model.leftConnected, charging: model.leftCharging)
                             BatteryRow(name: "Prawa połówka", level: model.rightBattery,
+                                       voltage: model.rightVoltage,
                                        connected: model.rightConnected, charging: model.rightCharging)
                         }
                     }
@@ -76,9 +78,6 @@ struct MenuView: View {
 
                 Section(title: "Ustawienia") {
                     VStack(spacing: 2) {
-                        SettingRow(title: "Zamień lewą i prawą", symbol: "arrow.left.arrow.right",
-                                   isOn: Binding(get: { model.swapHalves },
-                                                 set: { model.swapHalves = $0 }))
                         SettingRow(title: "Uruchamiaj przy logowaniu", symbol: "power",
                                    isOn: Binding(get: { model.launchAtLogin },
                                                  set: { model.setLaunchAtLogin($0) }))
@@ -226,6 +225,7 @@ private struct ListRow<Accessory: View>: View {
 private struct BatteryRow: View {
     let name: String
     let level: Int?
+    let voltage: Int?
     let connected: Bool
     let charging: Bool
 
@@ -244,9 +244,15 @@ private struct BatteryRow: View {
     }
 
     private var subtitle: String {
-        if !connected { return "Rozłączona" }
+        guard connected else { return "Rozłączona" }
+        guard let voltage else { return status }
+        return status + " · " + (Double(voltage) / 1000)
+            .formatted(.number.precision(.fractionLength(2))) + " V"
+    }
+
+    private var status: String {
         if charging { return "Ładuje" }
-        if let level, level == 0 { return "Bateria prawie pusta — naładuj" }
+        if let level, level == 0 { return "Naładuj baterię" }
         if let level, level <= 20 { return "Niski poziom baterii" }
         return "Na baterii"
     }

@@ -15,3 +15,15 @@
         , <&xiao_d 8 GPIO_ACTIVE_HIGH>
         ;
 };
+
+/* Battery %: LiPo discharge curve on top of the XIAO's voltage divider (modules/totem_status). */
+/ {
+    chosen {
+        zmk,battery = &lipo_batt;
+    };
+
+    lipo_batt: lipo_batt {
+        compatible = "totem,battery-lipo";
+        battery = <&vbatt>;
+    };
+};
