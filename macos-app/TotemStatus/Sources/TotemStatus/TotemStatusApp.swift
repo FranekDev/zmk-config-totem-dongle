@@ -18,13 +18,7 @@ struct TotemStatusApp: App {
                 // Opening the panel makes the dongle read both halves again.
                 .onAppear { model.refresh() }
         } label: {
-            // The TOTEM face, plus the active layer while it isn't a base layer.
-            HStack(spacing: 4) {
-                Image(nsImage: TotemIcon.menuBarImage(dimmed: !model.connected))
-                if model.showLayerInMenuBar, let layer = model.menuBarLayerName {
-                    Text(layer)
-                }
-            }
+            Image(nsImage: TotemIcon.menuBarImage(dimmed: !model.connected))
         }
         .menuBarExtraStyle(.window)
 
@@ -60,14 +54,16 @@ struct MenuView: View {
         NSApp.activate()
     }
 
-    private func batteryRow(_ side: Side) -> some View {
+    private func batteryRow(_ side: Side) -> BatteryRow {
         let left = side == .left
         let reading = model.reading(for: side)
         return BatteryRow(name: left ? "Lewa" : "Prawa",
+                          left: left,
                           level: reading?.level,
                           estimated: reading?.estimated ?? false,
                           full: reading?.full ?? false,
                           stalled: reading?.stalled ?? false,
+                          toFull: reading?.toFull,
                           voltage: left ? model.leftVoltage : model.rightVoltage,
                           connected: left ? model.leftConnected : model.rightConnected,
                           charging: left ? model.leftCharging : model.rightCharging,
@@ -85,8 +81,11 @@ struct MenuView: View {
                     Section(title: "Tryb") { ModePicker(model: model) }
                     Section(title: "Bateria") {
                         VStack(spacing: 2) {
-                            batteryRow(.left)
-                            batteryRow(.right)
+                            let tiles = [batteryRow(.left), batteryRow(.right)]
+                            let notes = tiles.contains { $0.hasTrailing }
+                            ForEach(tiles.indices, id: \.self) { i in
+                                tiles[i].withNote(reserved: notes)
+                            }
                             Button(action: showBattery) {
                                 ListRow(symbol: "chart.xyaxis.line", tint: .accentColor,
                                         title: "Historia baterii",
@@ -127,8 +126,6 @@ struct MenuView: View {
                         SettingRow(title: "Tryb macOS po podłączeniu", symbol: "apple.logo",
                                    subtitle: "Też po wybudzeniu Maca",
                                    isOn: $model.autoMacMode)
-                        SettingRow(title: "Warstwa w pasku menu", symbol: "menubar.rectangle",
-                                   isOn: $model.showLayerInMenuBar)
                         SettingRow(title: "Powiadomienia o baterii", symbol: "bell",
                                    isOn: $model.notificationsEnabled)
                     }
@@ -240,7 +237,7 @@ private struct ModePicker: View {
 
 // MARK: - Rows
 
-/// Raycast-style list row: rounded icon tile, title + subtitle, trailing accessory.
+/// Raycast-style list row: bare tinted icon, title + subtitle, trailing accessory.
 struct ListRow<Accessory: View>: View {
     let symbol: String
     let tint: Color
@@ -251,10 +248,9 @@ struct ListRow<Accessory: View>: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: symbol)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(tint)
                 .frame(width: 26, height: 26)
-                .background(tint.opacity(0.15), in: .rect(cornerRadius: 7))
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(.system(size: 13)).lineLimit(1)
                 if let subtitle {
@@ -274,8 +270,22 @@ struct ListRow<Accessory: View>: View {
     }
 }
 
+/// Whether a battery row is opened to show its details.
+final class ExpandState: ObservableObject {
+    @Published var open = false
+
+    init() {
+        #if DEBUG
+        open = CommandLine.arguments.contains("--expanded")
+        #endif
+    }
+}
+
 private struct BatteryRow: View {
     let name: String
+    let left: Bool
+    /// Keep the note's column, so the rows match when only one of them has a note.
+    var reserveNote = false
     /// Measured, or estimated while on a cable.
     let level: Int?
     var estimated: Bool = false
@@ -283,6 +293,8 @@ private struct BatteryRow: View {
     var full: Bool = false
     /// On a cable, but the charger stopped though the cell can't be full yet.
     var stalled: Bool = false
+    /// Estimated time until charged.
+    var toFull: TimeInterval? = nil
     let voltage: Int?
     let connected: Bool
     let charging: Bool
@@ -296,57 +308,207 @@ private struct BatteryRow: View {
     /// Older half firmware doesn't report USB power: a rising level (charging) means a cable too.
     private var approximate: Bool { (onUSB || charging) && !full }
 
+    @StateObject var expand = ExpandState()
+
+    func withNote(reserved: Bool) -> BatteryRow {
+        var row = self
+        row.reserveNote = reserved
+        return row
+    }
+
     var body: some View {
-        ListRow(symbol: symbol, tint: tint, title: name, subtitle: subtitle) {
-            if let level, connected {
-                HStack(spacing: 8) {
-                    if let rssi { SignalBars(rssi: rssi) }
-                    LevelBar(fraction: Double(level) / 100, tint: tint)
-                        .opacity(approximate ? 0.45 : 1)
-                    Text(approximate ? "~\(level)%" : "\(level)%")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(approximate ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
-                        .monospacedDigit()
-                        .frame(width: 40, alignment: .trailing)
+        // One line per half: which one, its level as a bar and a number, then what's next
+        // (time left, or the state when it needs attention). The colour carries the state.
+        // A click opens the rest underneath.
+        VStack(spacing: 8) {
+            summary
+            if expand.open { detailsList }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
+        .background(.quinary.opacity(0.5), in: .rect(cornerRadius: 10))
+        .contentShape(.rect(cornerRadius: 10))
+        .onTapGesture { expand.open.toggle() }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(name) połówka")
+        .accessibilityHint(detailLines.dropFirst().joined(separator: "\n"))
+        .accessibilityAddTraits(.isButton)
+    }
+
+    private var summary: some View {
+        HStack(spacing: 8) {
+            HalfIcon(left: left)
+                .foregroundStyle(tint)
+                .frame(width: 26, height: 20)
+                .accessibilityHidden(true)
+            Text(name)
+                .font(.system(size: 13))
+                .frame(width: 40, alignment: .leading)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(.quaternary)
+                    if let level, connected {
+                        Capsule()
+                            .fill(tint.gradient)
+                            .frame(width: max(4, geo.size.width * Double(level) / 100))
+                    }
+                }
+            }
+            .frame(height: 4)
+            Text(percent)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(connected ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                .monospacedDigit()
+                .frame(width: 42, alignment: .trailing)
+            if reserveNote {
+                // Kept even when this half has nothing to say, so the bars of both rows match.
+                HStack(spacing: 3) {
+                    if let badge, connected {
+                        Image(systemName: badge)
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(tint)
+                    }
+                    if let note {
+                        Text(note)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                    }
+                }
+                .frame(width: 70, alignment: .trailing)
+            }
+            // Says the row opens: voltage, signal and the rest are a click away.
+            Image(systemName: "chevron.right")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.tertiary)
+                .rotationEffect(.degrees(expand.open ? 90 : 0))
+        }
+    }
+
+    /// Something to show after the level: a mark, a note, or both.
+    var hasTrailing: Bool { note != nil || (connected && badge != nil) }
+
+    /// What the summary line doesn't already say: label left, value right, then a footnote.
+    private var detailsList: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if !connected {
+                detailRow("Stan") { Text("Rozłączona z donglem") }
+            } else {
+                if let voltageText { detailRow("Napięcie") { Text(voltageText) } }
+                if let time { detailRow(time.label) { Text(time.value) } }
+                if let rssi {
+                    detailRow("Sygnał") {
+                        HStack(spacing: 4) {
+                            SignalBars(rssi: rssi)
+                            Text("\(rssi) dBm")
+                        }
+                    }
+                    .help("Sygnał do dongla: \(SignalBars.quality(rssi))")
+                }
+                if let footnote {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Image(systemName: footnote.warning ? "exclamationmark.triangle" : "info.circle")
+                            .foregroundStyle(footnote.warning ? AnyShapeStyle(.orange) : AnyShapeStyle(.tertiary))
+                        Text(footnote.short)
+                            .foregroundStyle(footnote.warning ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .font(.system(size: 10))
+                    .padding(.top, 2)
+                    .help(footnote.full)
                 }
             }
         }
-        .contentShape(.rect(cornerRadius: 10))
-        .help(details)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // Under the name, past the icon.
+        .padding(.leading, 34)
     }
 
-    /// Everything about the half in full, for the tooltip.
-    private var details: String {
+    private func detailRow<Value: View>(_ label: String, @ViewBuilder value: () -> Value) -> some View {
+        HStack(spacing: 8) {
+            Text(label).foregroundStyle(.secondary)
+            Spacer(minLength: 8)
+            value().monospacedDigit()
+        }
+        .font(.system(size: 11))
+    }
+
+    private var voltageText: String? {
+        voltage.map { (Double($0) / 1000).formatted(.number.precision(.fractionLength(2))) + " V" }
+    }
+
+    /// Time to full on a cable, else time left on battery.
+    private var time: (label: String, value: String)? {
+        if stalled { return nil }
+        if approximate { return toFull.map { ("Do pełna", formatToFull($0)) } }
+        return remaining.map { ("Zostało", formatRemaining($0)) }
+    }
+
+    /// The caveat about the numbers above: one line in the row, in full in its tooltip
+    /// and for VoiceOver.
+    private var footnote: (short: String, full: String, warning: Bool)? {
+        if stalled {
+            let text = "Ładowarka przestała ładować, choć bateria była prawie pusta, więc pokazuję ostatni poziom na baterii. Bateria nie przyjmuje ładunku: sprawdź wyłącznik (ON), lutowanie przewodów baterii i samo ogniwo."
+            return (text, text, true)
+        }
+        if approximate {
+            return estimated
+                ? ("Poziom szacowany z napięcia; dokładny po odpięciu kabla.",
+                   "Poziom szacowany z napięcia podczas ładowania (na kablu jest ono wyższe niż samej baterii); dokładny poziom zobaczysz po odpięciu kabla.",
+                   false)
+                : ("Na kablu to napięcie ładowarki; prawdziwy poziom po odpięciu kabla.",
+                   "Na kablu odczyt pokazuje napięcie ładowarki, nie baterii. Prawdziwy poziom zobaczysz po odpięciu kabla.",
+                   false)
+        }
+        if remaining == nil {
+            let text = "Czas pracy oszacuję po kilku godzinach na baterii."
+            return (text, text, false)
+        }
+        return nil
+    }
+
+    /// Everything about the half in full, for VoiceOver.
+    private var detailLines: [String] {
         var lines = ["\(name) połówka"]
-        guard connected else { return (lines + ["Rozłączona z donglem"]).joined(separator: "\n") }
+        guard connected else { return lines + ["Rozłączona z donglem"] }
         lines.append("Stan: \(status)")
         if let level { lines.append("Poziom: \(approximate ? "~" : "")\(level)%") }
-        if let voltage {
-            lines.append("Napięcie: " + (Double(voltage) / 1000).formatted(.number.precision(.fractionLength(2))) + " V")
-        }
-        if stalled {
-            lines.append("Ładowarka przestała ładować, choć bateria była prawie pusta, więc pokazuję ostatni poziom na baterii. Bateria nie przyjmuje ładunku: sprawdź wyłącznik (ON), lutowanie przewodów baterii i samo ogniwo.")
-        } else if approximate {
-            lines.append(estimated
-                ? "Poziom szacowany: ostatni odczyt na baterii plus czas ładowania. Na kablu napięcie jest ładowarki, nie baterii; dokładny poziom zobaczysz po odpięciu kabla."
-                : "Na kablu odczyt pokazuje napięcie ładowarki, nie baterii. Prawdziwy poziom zobaczysz po odpięciu kabla.")
-        } else if let remaining {
-            lines.append("Zostało: \(formatRemaining(remaining))")
-        } else {
-            lines.append("Czas pracy oszacuję po kilku godzinach na baterii")
-        }
+        if let voltageText { lines.append("Napięcie: \(voltageText)") }
+        if let time { lines.append("\(time.label): \(time.value)") }
+        if let footnote { lines.append(footnote.full) }
         if let rssi { lines.append("Sygnał do dongla: \(rssi) dBm (\(SignalBars.quality(rssi)))") }
-        return lines.joined(separator: "\n")
+        return lines
     }
 
-    private var subtitle: String {
+    private var percent: String {
+        guard let level, connected else { return "—" }
+        return approximate ? "~\(level)%" : "\(level)%"
+    }
+
+    /// Under the level: the time left (to full on a cable, where the bolt says so, else on
+    /// battery), or the state when that needs attention. The rest is in the tooltip.
+    var note: String? {
         guard connected else { return "Rozłączona" }
-        var parts = [status]
-        if !approximate, let remaining { parts.append(formatRemaining(remaining)) }
-        if let voltage {
-            parts.append((Double(voltage) / 1000).formatted(.number.precision(.fractionLength(2))) + " V")
-        }
-        return parts.joined(separator: " · ")
+        if stalled { return "Nie ładuje" }
+        if full { return "Naładowana" }
+        if approximate { return toFull.map { Self.plain(formatToFull($0)) } }
+        if let level, level == 0 { return "Naładuj" }
+        if let level, level <= 20 { return "Niski poziom" }
+        return remaining.map { Self.plain(formatRemaining($0)) }
+    }
+
+    /// Without the "~": the grey text reads as an estimate as it is.
+    private static func plain(_ text: String) -> String {
+        text.hasPrefix("~") ? String(text.dropFirst()) : text
+    }
+
+    /// Small mark by the level: on a cable, or a problem.
+    private var badge: String? {
+        if stalled { return "exclamationmark.triangle.fill" }
+        if full { return "checkmark" }
+        if onUSB || charging { return "bolt.fill" }
+        return nil
     }
 
     private var status: String {
@@ -357,21 +519,6 @@ private struct BatteryRow: View {
         if let level, level == 0 { return "Naładuj baterię" }
         if let level, level <= 20 { return "Niski poziom" }
         return "Na baterii"
-    }
-
-    private var symbol: String {
-        guard let level, connected else { return "battery.0percent" }
-        if stalled { return "exclamationmark.triangle" }
-        if full { return "battery.100percent.bolt" }
-        if onUSB { return "powerplug" }
-        if charging { return "battery.100percent.bolt" }
-        switch level {
-        case 88...: return "battery.100percent"
-        case 63...: return "battery.75percent"
-        case 38...: return "battery.50percent"
-        case 13...: return "battery.25percent"
-        default: return "battery.0percent"
-        }
     }
 
     private var tint: Color {
@@ -405,17 +552,42 @@ private struct SignalBars: View {
     }
 }
 
-private struct LevelBar: View {
-    let fraction: Double
-    let tint: Color
+/// Both halves of the keyboard as a tiny glyph, the one in question solid and the other faint.
+private struct HalfIcon: View {
+    let left: Bool
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            Capsule().fill(.quaternary)
-            Capsule().fill(tint.gradient)
-                .frame(width: max(4, 56 * min(max(fraction, 0), 1)))
+        Canvas { context, size in
+            let key = 2.6, gap = 0.9, pitch = key + gap
+            let half = 3 * key + 2 * gap, between = 2.6
+            let x0 = (size.width - 2 * half - between) / 2
+            let y0 = (size.height - 4 * key - 3 * gap) / 2
+            for side in 0..<2 {
+                let origin = x0 + Double(side) * (half + between)
+                var keys = Path()
+                for column in 0..<3 {
+                    // Columns step down towards the outer edge, like the real halves.
+                    let outward = side == 0 ? 2 - column : column
+                    for row in 0..<3 {
+                        keys.addRoundedRect(in: CGRect(x: origin + Double(column) * pitch,
+                                                       y: y0 + Double(row) * pitch + Double(outward) * 0.6,
+                                                       width: key, height: key),
+                                            cornerSize: CGSize(width: 0.7, height: 0.7))
+                    }
+                }
+                // Thumb keys on the inner side.
+                for thumb in 0..<2 {
+                    let column = side == 0 ? 2 - thumb : thumb
+                    keys.addRoundedRect(in: CGRect(x: origin + Double(column) * pitch,
+                                                   y: y0 + 3 * pitch + Double(thumb) * 0.6 + 0.4,
+                                                   width: key, height: key),
+                                        cornerSize: CGSize(width: 0.7, height: 0.7))
+                }
+                var layer = context
+                layer.opacity = (side == 0) == left ? 1 : 0.3
+                layer.fill(keys, with: .foreground)
+            }
         }
-        .frame(width: 56, height: 5)
     }
 }
 

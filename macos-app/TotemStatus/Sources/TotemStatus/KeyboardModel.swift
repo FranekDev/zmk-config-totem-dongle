@@ -61,9 +61,6 @@ final class KeyboardModel: ObservableObject {
             if autoMacMode, isWindows { setWindows(false) }
         }
     }
-    @Published var showLayerInMenuBar = UserDefaults.standard.object(forKey: "showLayerInMenuBar") as? Bool ?? true {
-        didSet { UserDefaults.standard.set(showLayerInMenuBar, forKey: "showLayerInMenuBar") }
-    }
     @Published var notificationsEnabled = UserDefaults.standard.object(forKey: "notifications") as? Bool ?? true {
         didSet {
             UserDefaults.standard.set(notificationsEnabled, forKey: "notifications")
@@ -186,6 +183,8 @@ final class KeyboardModel: ObservableObject {
         /// On a cable, but the charger stopped long before the cell could be full: the
         /// cell takes no charge (bad cell or connection, power switch off).
         var stalled = false
+        /// Time until the charger is done, while charging.
+        var toFull: TimeInterval? = nil
     }
 
     func reading(for side: Side) -> LevelReading? {
@@ -201,7 +200,7 @@ final class KeyboardModel: ObservableObject {
             // A real charge takes its time: "done" within minutes of an empty cell means the
             // charger gave up, and the high voltage is its own, not the cell's.
             if let base = history.chargeBase(for: side),
-               Double(base) + Date().timeIntervalSince(start) / 60 * BatteryHistory.defaultChargeRate < 85 {
+               Double(base) + Date().timeIntervalSince(start) / 60 * BatteryHistory.fastestChargeRate < 85 {
                 stalledCharges[side] = start
                 return LevelReading(level: base, estimated: true, full: false, stalled: true)
             }
@@ -213,20 +212,14 @@ final class KeyboardModel: ObservableObject {
            let base = history.chargeBase(for: side) {
             return LevelReading(level: base, estimated: true, full: false, stalled: true)
         }
-        return LevelReading(level: history.chargeEstimate(for: side) ?? level, estimated: true, full: false)
+        return LevelReading(level: history.chargeEstimate(for: side) ?? level, estimated: true, full: false,
+                            toFull: history.timeToFull(for: side))
     }
 
     var leftRSSI: Int? { signal(at: leftSlot) }
     var rightRSSI: Int? { signal(at: 1 - leftSlot) }
 
     func slot(for side: Side) -> Int { side == .left ? leftSlot : 1 - leftSlot }
-
-    /// Layer name for the menu bar: nil on the base layers (BASE / WIN).
-    var menuBarLayerName: String? {
-        guard connected, highestLayer > 1, highestLayer < layerNames.count else { return nil }
-        let name = layerNames[highestLayer]
-        return name.hasPrefix("WIN_") ? String(name.dropFirst(4)) : name
-    }
 
     private func battery(at slot: Int) -> Int? {
         slot < batteries.count ? batteries[slot] : nil
@@ -439,6 +432,9 @@ final class KeyboardModel: ObservableObject {
                             external: external, enabled: notificationsEnabled)
             if connected, !settling, let level {
                 history.record(side: side, mv: voltage(at: slot) ?? 0, level: level, external: external)
+                if isOnUSB(at: slot), slot < chargerActive.count, chargerActive[slot] == false {
+                    history.chargerDone(side: side)
+                }
             }
         }
     }

@@ -251,7 +251,10 @@ private struct SideTile: View {
 
     private func detail(external: Bool) -> String {
         if model.reading(for: side)?.stalled == true { return "Na kablu, ale bateria się nie ładuje" }
-        if external { return "Na kablu, poziom szacowany z czasu ładowania" }
+        if external {
+            if let t = model.reading(for: side)?.toFull { return "Ładuje, \(formatToFull(t)) do pełna" }
+            return "Na kablu, poziom szacowany"
+        }
         if let t = history.estimatedRemaining(for: side) { return "Zostało \(formatRemaining(t))" }
         return "Szacunek czasu po kilku godzinach na baterii"
     }
