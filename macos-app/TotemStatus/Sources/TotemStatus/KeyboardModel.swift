@@ -124,9 +124,25 @@ final class KeyboardModel: ObservableObject {
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 
+#if DEBUG
+    private static var previewLocked = false
+
+    func setPreview(connected: Bool, isWindows: Bool, layer: Int, batteries: [Int], charging: [Bool]) {
+        Self.previewLocked = true
+        self.connected = connected
+        self.isWindows = isWindows
+        self.highestLayer = layer
+        self.batteries = batteries
+        self.charging = charging
+    }
+#endif
+
     // MARK: - Reports
 
     private func handle(_ r: [UInt8], from device: IOHIDDevice) {
+#if DEBUG
+        if Self.previewLocked { return }
+#endif
         guard r.count >= TotemProtocol.headerLength,
               r[0] == TotemProtocol.magic,
               r[1] == TotemProtocol.reportState else { return }

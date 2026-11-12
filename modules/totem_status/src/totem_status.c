@@ -33,6 +33,13 @@
 
 #include <raw_hid/events.h>
 
+#if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
+#include <zephyr/bluetooth/conn.h>
+#include <zephyr/bluetooth/gatt.h>
+#include <zephyr/bluetooth/uuid.h>
+#include <zmk/ble.h>
+#endif
+
 LOG_MODULE_REGISTER(totem_status, CONFIG_ZMK_LOG_LEVEL);
 
 #define TS_MAGIC 0xA7
@@ -92,6 +99,98 @@ static void send_state_work_cb(struct k_work *work) { send_state(); }
 static K_WORK_DELAYABLE_DEFINE(send_state_work, send_state_work_cb);
 
 static void schedule_send(k_timeout_t delay) { k_work_reschedule(&send_state_work, delay); }
+
+/* ---- own battery polling ----------------------------------------------
+ *
+ * Workaround for ZMK main: after a half reconnects (e.g. wakes from sleep) the
+ * central keeps a stale battery characteristic handle, stops GATT discovery
+ * early and never reads/subscribes the battery level again, so it stays 0.
+ * We read the Battery Level characteristic by UUID ourselves on a timer.
+ */
+#if TS_PERIPHERALS > 0 && IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
+
+#define TS_BATTERY_POLL_INTERVAL K_SECONDS(30)
+#define TS_BATTERY_READ_TIMEOUT_MS 10000
+
+struct ts_battery_read {
+    struct bt_gatt_read_params params;
+    uint8_t slot;
+    bool busy;
+    int64_t started;
+};
+
+static struct ts_battery_read battery_reads[TS_PERIPHERALS];
+
+static uint8_t battery_read_cb(struct bt_conn *conn, uint8_t err,
+                               struct bt_gatt_read_params *params, const void *data,
+                               uint16_t length) {
+    struct ts_battery_read *r = CONTAINER_OF(params, struct ts_battery_read, params);
+    r->busy = false;
+
+    if (err || data == NULL || length < 1) {
+        return BT_GATT_ITER_STOP;
+    }
+
+    uint8_t level = ((const uint8_t *)data)[0];
+    if (level > 0 && level <= 100 && battery_levels[r->slot] != level) {
+        LOG_DBG("Polled battery level %d%% for peripheral %d", level, r->slot);
+        battery_levels[r->slot] = level;
+        schedule_send(K_MSEC(100));
+    }
+    return BT_GATT_ITER_STOP;
+}
+
+static void poll_peripheral(struct bt_conn *conn, void *user_data) {
+    struct bt_conn_info info;
+    if (bt_conn_get_info(conn, &info) != 0 || info.role != BT_CONN_ROLE_CENTRAL ||
+        info.state != BT_CONN_STATE_CONNECTED) {
+        return;
+    }
+
+    /* Returns the existing slot index for an already bonded peripheral. */
+    int slot = zmk_ble_put_peripheral_addr(bt_conn_get_dst(conn));
+    if (slot < 0 || slot >= TS_PERIPHERALS) {
+        return;
+    }
+
+    struct ts_battery_read *r = &battery_reads[slot];
+    if (r->busy && k_uptime_get() - r->started < TS_BATTERY_READ_TIMEOUT_MS) {
+        return;
+    }
+
+    memset(&r->params, 0, sizeof(r->params));
+    r->slot = slot;
+    r->params.func = battery_read_cb;
+    r->params.handle_count = 0; /* read by UUID */
+    r->params.by_uuid.start_handle = BT_ATT_FIRST_ATTRIBUTE_HANDLE;
+    r->params.by_uuid.end_handle = BT_ATT_LAST_ATTRIBUTE_HANDLE;
+    r->params.by_uuid.uuid = BT_UUID_BAS_BATTERY_LEVEL;
+    r->busy = true;
+    r->started = k_uptime_get();
+
+    int err = bt_gatt_read(conn, &r->params);
+    if (err) {
+        LOG_DBG("Battery read for peripheral %d failed: %d", slot, err);
+        r->busy = false;
+    }
+}
+
+static void battery_poll_work_cb(struct k_work *work);
+static K_WORK_DELAYABLE_DEFINE(battery_poll_work, battery_poll_work_cb);
+
+static void battery_poll_work_cb(struct k_work *work) {
+    bt_conn_foreach(BT_CONN_TYPE_LE, poll_peripheral, NULL);
+    k_work_schedule(&battery_poll_work, TS_BATTERY_POLL_INTERVAL);
+}
+
+static int totem_status_init(void) {
+    k_work_schedule(&battery_poll_work, K_SECONDS(5));
+    return 0;
+}
+
+SYS_INIT(totem_status_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
+
+#endif
 
 /* ---- incoming commands ------------------------------------------------- */
 

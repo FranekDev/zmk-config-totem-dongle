@@ -1,0 +1,1617 @@
+{
+ "layout": [
+  {
+   "w": 100,
+   "h": 100,
+   "x": 73,
+   "y": 152,
+   "rot": -10.0,
+   "rx": 123,
+   "ry": 202
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 186,
+   "y": 60,
+   "rot": -4.0,
+   "rx": 236,
+   "ry": 110
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 300,
+   "y": 0,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 400,
+   "y": 50,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 500,
+   "y": 66,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 985,
+   "y": 66,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 1085,
+   "y": 50,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 1185,
+   "y": 0,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 1300,
+   "y": 60,
+   "rot": 4.0,
+   "rx": 1350,
+   "ry": 110
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 1412,
+   "y": 152,
+   "rot": 10.0,
+   "rx": 1462,
+   "ry": 202
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 90,
+   "y": 250,
+   "rot": -10.0,
+   "rx": 140,
+   "ry": 300
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 192,
+   "y": 160,
+   "rot": -4.0,
+   "rx": 242,
+   "ry": 210
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 300,
+   "y": 100,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 400,
+   "y": 150,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 500,
+   "y": 166,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 985,
+   "y": 166,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 1085,
+   "y": 150,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 1185,
+   "y": 100,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 1293,
+   "y": 160,
+   "rot": 4.0,
+   "rx": 1343,
+   "ry": 210
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 1395,
+   "y": 250,
+   "rot": 10.0,
+   "rx": 1445,
+   "ry": 300
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 0,
+   "y": 323,
+   "rot": -10.0,
+   "rx": 50,
+   "ry": 373
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 106,
+   "y": 349,
+   "rot": -10.0,
+   "rx": 156,
+   "ry": 399
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 199,
+   "y": 260,
+   "rot": -4.0,
+   "rx": 249,
+   "ry": 310
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 300,
+   "y": 200,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 400,
+   "y": 250,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 500,
+   "y": 266,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 985,
+   "y": 266,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 1085,
+   "y": 250,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 1185,
+   "y": 200,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 1287,
+   "y": 260,
+   "rot": 4.0,
+   "rx": 1337,
+   "ry": 310
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 1379,
+   "y": 349,
+   "rot": 10.0,
+   "rx": 1429,
+   "ry": 399
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 1485,
+   "y": 323,
+   "rot": 10.0,
+   "rx": 1535,
+   "ry": 373
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 372,
+   "y": 371,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 483,
+   "y": 388,
+   "rot": 15.0,
+   "rx": 533,
+   "ry": 438
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 585,
+   "y": 433,
+   "rot": 30.0,
+   "rx": 635,
+   "ry": 483
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 900,
+   "y": 433,
+   "rot": -30.0,
+   "rx": 950,
+   "ry": 483
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 1002,
+   "y": 388,
+   "rot": -15.0,
+   "rx": 1052,
+   "ry": 438
+  },
+  {
+   "w": 100,
+   "h": 100,
+   "x": 1113,
+   "y": 371,
+   "rot": 0.0,
+   "rx": 0,
+   "ry": 0
+  }
+ ],
+ "layers": [
+  {
+   "id": "base_layer",
+   "name": "BASE",
+   "keys": [
+    {
+     "kind": "key",
+     "tap": "Q",
+     "desc": "Q"
+    },
+    {
+     "kind": "key",
+     "tap": "W",
+     "desc": "W"
+    },
+    {
+     "kind": "key",
+     "tap": "E",
+     "desc": "E"
+    },
+    {
+     "kind": "key",
+     "tap": "R",
+     "desc": "R"
+    },
+    {
+     "kind": "key",
+     "tap": "T",
+     "desc": "T"
+    },
+    {
+     "kind": "key",
+     "tap": "Y",
+     "desc": "Y"
+    },
+    {
+     "kind": "key",
+     "tap": "U",
+     "desc": "U"
+    },
+    {
+     "kind": "key",
+     "tap": "I",
+     "desc": "I"
+    },
+    {
+     "kind": "key",
+     "tap": "O",
+     "desc": "O"
+    },
+    {
+     "kind": "key",
+     "tap": "P",
+     "desc": "P"
+    },
+    {
+     "kind": "mod",
+     "tap": "A",
+     "hold": "{ctrl}",
+     "desc": "Tap: A · Przytrzymaj: Control"
+    },
+    {
+     "kind": "mod",
+     "tap": "S",
+     "hold": "{alt}",
+     "desc": "Tap: S · Przytrzymaj: Option/Alt"
+    },
+    {
+     "kind": "mod",
+     "tap": "D",
+     "hold": "{gui}",
+     "desc": "Tap: D · Przytrzymaj: Command/Win"
+    },
+    {
+     "kind": "mod",
+     "tap": "F",
+     "hold": "{shift}",
+     "desc": "Tap: F · Przytrzymaj: Shift"
+    },
+    {
+     "kind": "key",
+     "tap": "G",
+     "desc": "G"
+    },
+    {
+     "kind": "key",
+     "tap": "H",
+     "desc": "H"
+    },
+    {
+     "kind": "mod",
+     "tap": "J",
+     "hold": "{shift}",
+     "desc": "Tap: J · Przytrzymaj: Shift"
+    },
+    {
+     "kind": "mod",
+     "tap": "K",
+     "hold": "{gui}",
+     "desc": "Tap: K · Przytrzymaj: Command/Win"
+    },
+    {
+     "kind": "mod",
+     "tap": "L",
+     "hold": "{alt}",
+     "desc": "Tap: L · Przytrzymaj: Option/Alt"
+    },
+    {
+     "kind": "mod",
+     "tap": ";",
+     "hold": "{ctrl}",
+     "desc": "Tap: ; · Przytrzymaj: Control"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:arrow.right.to.line}",
+     "desc": "Tab"
+    },
+    {
+     "kind": "key",
+     "tap": "Z",
+     "desc": "Z"
+    },
+    {
+     "kind": "key",
+     "tap": "X",
+     "desc": "X"
+    },
+    {
+     "kind": "key",
+     "tap": "C",
+     "desc": "C"
+    },
+    {
+     "kind": "key",
+     "tap": "V",
+     "desc": "V"
+    },
+    {
+     "kind": "key",
+     "tap": "B",
+     "desc": "B"
+    },
+    {
+     "kind": "key",
+     "tap": "N",
+     "desc": "N"
+    },
+    {
+     "kind": "key",
+     "tap": "M",
+     "desc": "M"
+    },
+    {
+     "kind": "key",
+     "tap": ",",
+     "desc": ","
+    },
+    {
+     "kind": "key",
+     "tap": ".",
+     "desc": "."
+    },
+    {
+     "kind": "key",
+     "tap": "/",
+     "desc": "/"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:delete.left}",
+     "desc": "Backspace"
+    },
+    {
+     "kind": "layer",
+     "tap": "{sf:arrow.left}",
+     "hold": "ADJ",
+     "layer": 4,
+     "desc": "Tap: Strzałka w lewo · Przytrzymaj: warstwa ADJ"
+    },
+    {
+     "kind": "layer",
+     "tap": "{sf:arrow.down}",
+     "hold": "NAV",
+     "layer": 2,
+     "desc": "Tap: Strzałka w dół · Przytrzymaj: warstwa NAV"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:space}",
+     "desc": "Spacja"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:return}",
+     "desc": "Enter"
+    },
+    {
+     "kind": "layer",
+     "tap": "{sf:arrow.up}",
+     "hold": "SYM",
+     "layer": 3,
+     "desc": "Tap: Strzałka w górę · Przytrzymaj: warstwa SYM"
+    },
+    {
+     "kind": "layer",
+     "tap": "{sf:arrow.right}",
+     "hold": "ARR",
+     "layer": 5,
+     "desc": "Tap: Strzałka w prawo · Przytrzymaj: warstwa ARR"
+    }
+   ]
+  },
+  {
+   "id": "win_layer",
+   "name": "WIN",
+   "keys": [
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "mod",
+     "tap": "A",
+     "hold": "{gui}",
+     "desc": "Tap: A · Przytrzymaj: Command/Win"
+    },
+    {
+     "kind": "mod",
+     "tap": "S",
+     "hold": "{alt}",
+     "desc": "Tap: S · Przytrzymaj: Option/Alt"
+    },
+    {
+     "kind": "mod",
+     "tap": "D",
+     "hold": "{ctrl}",
+     "desc": "Tap: D · Przytrzymaj: Control"
+    },
+    {
+     "kind": "mod",
+     "tap": "F",
+     "hold": "{shift}",
+     "desc": "Tap: F · Przytrzymaj: Shift"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "mod",
+     "tap": "J",
+     "hold": "{shift}",
+     "desc": "Tap: J · Przytrzymaj: Shift"
+    },
+    {
+     "kind": "mod",
+     "tap": "K",
+     "hold": "{ctrl}",
+     "desc": "Tap: K · Przytrzymaj: Control"
+    },
+    {
+     "kind": "mod",
+     "tap": "L",
+     "hold": "{gui}",
+     "desc": "Tap: L · Przytrzymaj: Command/Win"
+    },
+    {
+     "kind": "mod",
+     "tap": ";",
+     "hold": "{alt}",
+     "desc": "Tap: ; · Przytrzymaj: Option/Alt"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    }
+   ]
+  },
+  {
+   "id": "nav_layer",
+   "name": "NAV",
+   "keys": [
+    {
+     "kind": "key",
+     "tap": "!",
+     "desc": "!"
+    },
+    {
+     "kind": "key",
+     "tap": "\"",
+     "desc": "\""
+    },
+    {
+     "kind": "key",
+     "tap": "{",
+     "desc": "{"
+    },
+    {
+     "kind": "key",
+     "tap": "}",
+     "desc": "}"
+    },
+    {
+     "kind": "key",
+     "tap": "%",
+     "desc": "%"
+    },
+    {
+     "kind": "key",
+     "tap": "#",
+     "desc": "#"
+    },
+    {
+     "kind": "key",
+     "tap": "7",
+     "desc": "7"
+    },
+    {
+     "kind": "key",
+     "tap": "8",
+     "desc": "8"
+    },
+    {
+     "kind": "key",
+     "tap": "9",
+     "desc": "9"
+    },
+    {
+     "kind": "key",
+     "tap": "+",
+     "desc": "+"
+    },
+    {
+     "kind": "key",
+     "tap": "=",
+     "desc": "="
+    },
+    {
+     "kind": "key",
+     "tap": "'",
+     "desc": "'"
+    },
+    {
+     "kind": "key",
+     "tap": "[",
+     "desc": "["
+    },
+    {
+     "kind": "key",
+     "tap": "]",
+     "desc": "]"
+    },
+    {
+     "kind": "key",
+     "tap": "@",
+     "desc": "@"
+    },
+    {
+     "kind": "key",
+     "tap": "$",
+     "desc": "$"
+    },
+    {
+     "kind": "key",
+     "tap": "4",
+     "desc": "4"
+    },
+    {
+     "kind": "key",
+     "tap": "5",
+     "desc": "5"
+    },
+    {
+     "kind": "key",
+     "tap": "6",
+     "desc": "6"
+    },
+    {
+     "kind": "key",
+     "tap": "-",
+     "desc": "-"
+    },
+    {
+     "kind": "key",
+     "tap": "&",
+     "desc": "&"
+    },
+    {
+     "kind": "key",
+     "tap": "_",
+     "desc": "_"
+    },
+    {
+     "kind": "key",
+     "tap": "`",
+     "desc": "`"
+    },
+    {
+     "kind": "key",
+     "tap": "(",
+     "desc": "("
+    },
+    {
+     "kind": "key",
+     "tap": ")",
+     "desc": ")"
+    },
+    {
+     "kind": "key",
+     "tap": "~",
+     "desc": "~"
+    },
+    {
+     "kind": "key",
+     "tap": "?",
+     "desc": "?"
+    },
+    {
+     "kind": "key",
+     "tap": "1",
+     "desc": "1"
+    },
+    {
+     "kind": "key",
+     "tap": "2",
+     "desc": "2"
+    },
+    {
+     "kind": "key",
+     "tap": "3",
+     "desc": "3"
+    },
+    {
+     "kind": "key",
+     "tap": "*",
+     "desc": "*"
+    },
+    {
+     "kind": "key",
+     "tap": "|",
+     "desc": "|"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "key",
+     "tap": "<",
+     "desc": "<"
+    },
+    {
+     "kind": "key",
+     "tap": "0",
+     "desc": "0"
+    },
+    {
+     "kind": "key",
+     "tap": ">",
+     "desc": ">"
+    }
+   ]
+  },
+  {
+   "id": "sim_layer",
+   "name": "SYM",
+   "keys": [
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:arrow.up}",
+     "desc": "Strzałka w górę"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "key",
+     "tap": "{gui}{shift}[",
+     "desc": "Command/Win + Shift + ["
+    },
+    {
+     "kind": "key",
+     "tap": "{gui}{shift}]",
+     "desc": "Command/Win + Shift + ]"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:sun.min.fill}",
+     "desc": "Ciemniej"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:sun.max.fill}",
+     "desc": "Jaśniej"
+    },
+    {
+     "kind": "key",
+     "tap": "^",
+     "desc": "^"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:arrow.left}",
+     "desc": "Strzałka w lewo"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:arrow.down}",
+     "desc": "Strzałka w dół"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:arrow.right}",
+     "desc": "Strzałka w prawo"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:speaker.slash.fill}",
+     "desc": "Wycisz"
+    },
+    {
+     "kind": "key",
+     "tap": "{gui}{sf:arrow.left}",
+     "desc": "Command/Win + Strzałka w lewo"
+    },
+    {
+     "kind": "key",
+     "tap": "{gui}{sf:arrow.right}",
+     "desc": "Command/Win + Strzałka w prawo"
+    },
+    {
+     "kind": "key",
+     "tap": "esc",
+     "desc": "esc"
+    },
+    {
+     "kind": "key",
+     "tap": "\\",
+     "desc": "\\"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "key",
+     "tap": "pg{sf:arrow.up}",
+     "desc": "Page Up"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:capslock}",
+     "desc": "Caps Lock"
+    },
+    {
+     "kind": "key",
+     "tap": "pg{sf:arrow.down}",
+     "desc": "Page Down"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:speaker.wave.1.fill}",
+     "desc": "Ciszej"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:speaker.wave.3.fill}",
+     "desc": "Głośniej"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:backward.fill}",
+     "desc": "Poprzedni utwór"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:forward.fill}",
+     "desc": "Następny utwór"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:delete.right}",
+     "desc": "Delete"
+    },
+    {
+     "kind": "key",
+     "tap": "ins",
+     "desc": "ins"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    }
+   ]
+  },
+  {
+   "id": "adjust_layer",
+   "name": "ADJ",
+   "keys": [
+    {
+     "kind": "key",
+     "tap": "esc",
+     "desc": "esc"
+    },
+    {
+     "kind": "key",
+     "tap": "{gui}{shift}R",
+     "desc": "Command/Win + Shift + R"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "key",
+     "tap": "F7",
+     "desc": "F7"
+    },
+    {
+     "kind": "key",
+     "tap": "F8",
+     "desc": "F8"
+    },
+    {
+     "kind": "key",
+     "tap": "F9",
+     "desc": "F9"
+    },
+    {
+     "kind": "key",
+     "tap": "F12",
+     "desc": "F12"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "key",
+     "tap": "F4",
+     "desc": "F4"
+    },
+    {
+     "kind": "key",
+     "tap": "F5",
+     "desc": "F5"
+    },
+    {
+     "kind": "key",
+     "tap": "F6",
+     "desc": "F6"
+    },
+    {
+     "kind": "key",
+     "tap": "F11",
+     "desc": "F11"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "key",
+     "tap": "F1",
+     "desc": "F1"
+    },
+    {
+     "kind": "key",
+     "tap": "F2",
+     "desc": "F2"
+    },
+    {
+     "kind": "key",
+     "tap": "F3",
+     "desc": "F3"
+    },
+    {
+     "kind": "key",
+     "tap": "F10",
+     "desc": "F10"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    }
+   ]
+  },
+  {
+   "id": "arr_layer",
+   "name": "ARR",
+   "keys": [
+    {
+     "kind": "system",
+     "tap": "reset",
+     "desc": "Restart klawiatury"
+    },
+    {
+     "kind": "system",
+     "tap": "BT clr",
+     "desc": "Bluetooth: CLR"
+    },
+    {
+     "kind": "system",
+     "tap": "out",
+     "desc": "Wyjście: OUT_TOG"
+    },
+    {
+     "kind": "layer",
+     "tap": "{sf:switch.2} WIN",
+     "layer": 1,
+     "desc": "Przełącz: warstwa WIN"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "system",
+     "tap": "boot",
+     "desc": "Tryb bootloadera (flashowanie)"
+    },
+    {
+     "kind": "system",
+     "tap": "BT →",
+     "desc": "Bluetooth: NXT"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:arrow.left}",
+     "desc": "Strzałka w lewo"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:arrow.down}",
+     "desc": "Strzałka w dół"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:arrow.up}",
+     "desc": "Strzałka w górę"
+    },
+    {
+     "kind": "key",
+     "tap": "{sf:arrow.right}",
+     "desc": "Strzałka w prawo"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "system",
+     "tap": "BT ←",
+     "desc": "Bluetooth: PRV"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    }
+   ]
+  },
+  {
+   "id": "win_sym_layer",
+   "name": "WIN_SYM",
+   "keys": [
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "key",
+     "tap": "{ctrl}pg{sf:arrow.up}",
+     "desc": "Control + Page Up"
+    },
+    {
+     "kind": "key",
+     "tap": "{ctrl}pg{sf:arrow.down}",
+     "desc": "Control + Page Down"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "key",
+     "tap": "home",
+     "desc": "home"
+    },
+    {
+     "kind": "key",
+     "tap": "end",
+     "desc": "end"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    }
+   ]
+  },
+  {
+   "id": "win_adj_layer",
+   "name": "WIN_ADJ",
+   "keys": [
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "key",
+     "tap": "{ctrl}F5",
+     "desc": "Control + F5"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    },
+    {
+     "kind": "trans"
+    }
+   ]
+  }
+ ],
+ "conditional": [
+  {
+   "if": [
+    1,
+    3
+   ],
+   "then": 6
+  },
+  {
+   "if": [
+    1,
+    4
+   ],
+   "then": 7
+  }
+ ]
+}

@@ -10,7 +10,7 @@ Requires dongle firmware with `CONFIG_TOTEM_STATUS=y` (see `modules/totem_status
     ./build-app.sh
     cp -R TotemStatus.app /Applications/ && open /Applications/TotemStatus.app
 
-Works with Command Line Tools only (no Xcode needed). macOS 14+.
+Works with Command Line Tools only (no Xcode needed). macOS 26+.
 
 ## Protocol (32-byte reports)
 
@@ -32,3 +32,10 @@ Menu bar glyph = the "face" from the TOTEM logo (github.com/GEIGEIGEIST/TOTEM), 
 ZMK forwards only the battery percentage of the halves (no charger status), so "ładuje" / the bolt
 is inferred: a half counts as charging after its level rose by ≥3 points, and stops when the level
 drops or hasn't risen for 20 minutes. It may take a few minutes after plugging in to show up.
+
+## Layout viewer
+
+"Układ klawiszy" (⌘K in the panel) shows every layer on the real TOTEM geometry, for macOS or
+Windows mode (WIN + conditional layers applied). `build-app.sh` regenerates `Resources/keymap.json`
+from `config/totem.keymap` and `totem-layouts.dtsi` via `scripts/gen-keymap.py`, so rebuild the app
+after changing the keymap. Debug preview: `swift run TotemStatus --preview --layout --layer 2 [--win]`.

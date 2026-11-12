@@ -36,76 +36,12 @@ enum TotemIcon {
     }
 
     /// Template image for the menu bar (adapts to light/dark menu bar automatically).
-    static func menuBarImage(height: CGFloat = 15) -> NSImage {
+    /// `dimmed` draws it semi-transparent, used while no dongle is connected.
+    static func menuBarImage(height: CGFloat = 16, dimmed: Bool = false) -> NSImage {
         let w = (height * size.width / size.height).rounded(.up)
         let image = NSImage(size: NSSize(width: w, height: height), flipped: false) { rect in
-            NSColor.black.setFill()
+            NSColor.black.withAlphaComponent(dimmed ? 0.4 : 1).setFill()
             path(in: rect).fill()
-            return true
-        }
-        image.isTemplate = true
-        return image
-    }
-
-    /// Full menu bar label as one template image: TOTEM face, optional OS symbol, then each
-    /// battery as "87%" followed by a bolt when that half is charging.
-    static func statusImage(symbol: String?, batteries: [(level: Int?, charging: Bool)] = [],
-                            dimmed: Bool = false) -> NSImage {
-        let height: CGFloat = 20
-        let faceHeight: CGFloat = 16
-        let faceWidth = (faceHeight * size.width / size.height).rounded(.up)
-        let gap: CGFloat = 4
-
-        let font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
-        let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.black]
-        let symbolConfig = NSImage.SymbolConfiguration(pointSize: 12, weight: .medium)
-        let boltConfig = NSImage.SymbolConfiguration(pointSize: 10, weight: .bold)
-
-        enum Part { case image(NSImage, gapBefore: CGFloat), text(String, gapBefore: CGFloat) }
-        var parts: [Part] = []
-        if let symbol, let img = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
-            .withSymbolConfiguration(symbolConfig) {
-            parts.append(.image(img, gapBefore: gap))
-        }
-        for battery in batteries {
-            let text: String
-            if let level = battery.level, level > 0 { text = "\(level)%" } else { text = "–" }
-            parts.append(.text(text, gapBefore: gap + 1))
-            if battery.charging, let bolt = NSImage(systemSymbolName: "bolt.fill", accessibilityDescription: nil)?
-                .withSymbolConfiguration(boltConfig) {
-                parts.append(.image(bolt, gapBefore: 1))
-            }
-        }
-
-        var width = faceWidth
-        for part in parts {
-            switch part {
-            case let .image(img, g): width += g + img.size.width
-            case let .text(t, g): width += g + (t as NSString).size(withAttributes: attrs).width
-            }
-        }
-
-        let image = NSImage(size: NSSize(width: ceil(width), height: height), flipped: false) { _ in
-            let alpha: CGFloat = dimmed ? 0.45 : 1
-            NSColor.black.withAlphaComponent(alpha).setFill()
-            var x: CGFloat = 0
-            path(in: CGRect(x: x, y: (height - faceHeight) / 2, width: faceWidth, height: faceHeight)).fill()
-            x += faceWidth
-            for part in parts {
-                switch part {
-                case let .image(img, g):
-                    x += g
-                    img.draw(in: CGRect(x: x, y: (height - img.size.height) / 2,
-                                        width: img.size.width, height: img.size.height),
-                             from: .zero, operation: .sourceOver, fraction: alpha)
-                    x += img.size.width
-                case let .text(t, g):
-                    x += g
-                    let sz = (t as NSString).size(withAttributes: attrs)
-                    (t as NSString).draw(at: CGPoint(x: x, y: (height - sz.height) / 2), withAttributes: attrs)
-                    x += sz.width
-                }
-            }
             return true
         }
         image.isTemplate = true

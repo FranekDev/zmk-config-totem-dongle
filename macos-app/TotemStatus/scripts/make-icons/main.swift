@@ -39,9 +39,8 @@ for base in [16, 32, 128, 256, 512] {
 if args.count > 2 {
     let dir = URL(fileURLWithPath: args[2])
     let samples: [(String, NSImage)] = [
-        ("mac", TotemIcon.statusImage(symbol: "apple.logo", batteries: [(87, false), (64, true)])),
-        ("win", TotemIcon.statusImage(symbol: "pc", batteries: [(87, false), (nil, false)])),
-        ("off", TotemIcon.statusImage(symbol: nil, dimmed: true)),
+        ("on", TotemIcon.menuBarImage()),
+        ("off", TotemIcon.menuBarImage(dimmed: true)),
     ]
     for (name, img) in samples {
         for (bgName, bg, fg) in [("light", NSColor(white: 0.93, alpha: 1), NSColor.black),
