@@ -95,6 +95,8 @@ final class KeyboardModel: ObservableObject {
     private var keyboard: IOHIDDevice?
     private var pollTimer: Timer?
     private var chargeTrackers: [Int: ChargeTracker] = [:]
+    /// Start of the charge during which the charger gave up on a half, see reading(for:).
+    private var stalledCharges: [Side: Date] = [:]
     /// When each half (re)connected. Its first readings can be off (taken during boot, or
     /// while the cell recovers from the charger), so they stay out of the history and
     /// the notifications for a moment.
@@ -181,6 +183,9 @@ final class KeyboardModel: ObservableObject {
         let estimated: Bool
         /// On a cable with the charger done.
         let full: Bool
+        /// On a cable, but the charger stopped long before the cell could be full: the
+        /// cell takes no charge (bad cell or connection, power switch off).
+        var stalled = false
     }
 
     func reading(for side: Side) -> LevelReading? {
@@ -193,7 +198,20 @@ final class KeyboardModel: ObservableObject {
         // Charger done: no current flows, so the voltage is the cell's own again. The
         // charger also reads "done" for a moment right after the cable goes in.
         if active == false, let start = history.chargeStart(for: side), Date().timeIntervalSince(start) > 15 {
+            // A real charge takes its time: "done" within minutes of an empty cell means the
+            // charger gave up, and the high voltage is its own, not the cell's.
+            if let base = history.chargeBase(for: side),
+               Double(base) + Date().timeIntervalSince(start) / 60 * BatteryHistory.defaultChargeRate < 85 {
+                stalledCharges[side] = start
+                return LevelReading(level: base, estimated: true, full: false, stalled: true)
+            }
             return LevelReading(level: level, estimated: false, full: true)
+        }
+        // A charger without a cell it can charge keeps starting and giving up: once it gave
+        // up, the whole time on this cable counts as not charging.
+        if let start = history.chargeStart(for: side), stalledCharges[side] == start,
+           let base = history.chargeBase(for: side) {
+            return LevelReading(level: base, estimated: true, full: false, stalled: true)
         }
         return LevelReading(level: history.chargeEstimate(for: side) ?? level, estimated: true, full: false)
     }

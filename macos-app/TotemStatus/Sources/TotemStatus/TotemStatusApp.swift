@@ -67,6 +67,7 @@ struct MenuView: View {
                           level: reading?.level,
                           estimated: reading?.estimated ?? false,
                           full: reading?.full ?? false,
+                          stalled: reading?.stalled ?? false,
                           voltage: left ? model.leftVoltage : model.rightVoltage,
                           connected: left ? model.leftConnected : model.rightConnected,
                           charging: left ? model.leftCharging : model.rightCharging,
@@ -280,6 +281,8 @@ private struct BatteryRow: View {
     var estimated: Bool = false
     /// On a cable with the charger done.
     var full: Bool = false
+    /// On a cable, but the charger stopped though the cell can't be full yet.
+    var stalled: Bool = false
     let voltage: Int?
     let connected: Bool
     let charging: Bool
@@ -321,7 +324,9 @@ private struct BatteryRow: View {
         if let voltage {
             lines.append("Napięcie: " + (Double(voltage) / 1000).formatted(.number.precision(.fractionLength(2))) + " V")
         }
-        if approximate {
+        if stalled {
+            lines.append("Ładowarka przestała ładować, choć bateria była prawie pusta, więc pokazuję ostatni poziom na baterii. Bateria nie przyjmuje ładunku: sprawdź wyłącznik (ON), lutowanie przewodów baterii i samo ogniwo.")
+        } else if approximate {
             lines.append(estimated
                 ? "Poziom szacowany: ostatni odczyt na baterii plus czas ładowania. Na kablu napięcie jest ładowarki, nie baterii; dokładny poziom zobaczysz po odpięciu kabla."
                 : "Na kablu odczyt pokazuje napięcie ładowarki, nie baterii. Prawdziwy poziom zobaczysz po odpięciu kabla.")
@@ -345,6 +350,7 @@ private struct BatteryRow: View {
     }
 
     private var status: String {
+        if stalled { return "Nie ładuje się" }
         if full { return "Naładowana" }
         if onUSB { return "Ładuje" }
         if charging { return "Ładuje" }
@@ -355,6 +361,7 @@ private struct BatteryRow: View {
 
     private var symbol: String {
         guard let level, connected else { return "battery.0percent" }
+        if stalled { return "exclamationmark.triangle" }
         if full { return "battery.100percent.bolt" }
         if onUSB { return "powerplug" }
         if charging { return "battery.100percent.bolt" }
@@ -369,6 +376,7 @@ private struct BatteryRow: View {
 
     private var tint: Color {
         guard let level, connected else { return .secondary }
+        if stalled { return .orange }
         if full { return .green }
         if onUSB { return .blue }
         if charging { return .green }

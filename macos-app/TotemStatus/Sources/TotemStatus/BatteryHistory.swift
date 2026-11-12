@@ -61,6 +61,13 @@ final class BatteryHistory: ObservableObject {
         return min(99, session.base + Int(minutes * chargeRate(for: side)))
     }
 
+    /// The level on battery right before the current charge, nil when not on a cable.
+    func chargeBase(for side: Side) -> Int? {
+        let all = samples.filter { $0.side == side }
+        guard all.last?.external == true else { return nil }
+        return chargeSession(in: all, endingAt: all.count)?.base
+    }
+
     /// When the current charge began, nil when not on a cable.
     func chargeStart(for side: Side) -> Date? {
         let all = samples.filter { $0.side == side }
