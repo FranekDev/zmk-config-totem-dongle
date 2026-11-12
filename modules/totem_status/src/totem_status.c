@@ -11,12 +11,13 @@
  * Keyboard -> host (sent on request and whenever something changes):
  *   [0]    0xA7 magic
  *   [1]    0x81 STATE
- *   [2]    protocol version (1)
+ *   [2]    protocol version (2)
  *   [3]    1 when the Windows layer is active
  *   [4]    highest active layer index
  *   [5..8] active layer bitmask, little endian
  *   [9]    N = number of peripheral slots
- *   [10..] battery % per peripheral slot (0 = disconnected / unknown)
+ *   [10..] battery % per peripheral slot (0 = empty, disconnected or unknown)
+ *   [10+N] bitmask of connected peripheral slots (v2+)
  */
 
 #include <string.h>
@@ -43,7 +44,7 @@
 LOG_MODULE_REGISTER(totem_status, CONFIG_ZMK_LOG_LEVEL);
 
 #define TS_MAGIC 0xA7
-#define TS_PROTOCOL_VERSION 1
+#define TS_PROTOCOL_VERSION 2
 
 #define TS_CMD_GET_STATE 0x01
 #define TS_CMD_SET_OS 0x02
@@ -60,11 +61,42 @@ LOG_MODULE_REGISTER(totem_status, CONFIG_ZMK_LOG_LEVEL);
 #endif
 
 #define TS_HEADER_LEN 10
-BUILD_ASSERT(TS_HEADER_LEN + TS_PERIPHERALS <= CONFIG_RAW_HID_REPORT_SIZE,
+BUILD_ASSERT(TS_HEADER_LEN + TS_PERIPHERALS + 1 <= CONFIG_RAW_HID_REPORT_SIZE,
              "Raw HID report too small for all peripheral battery levels");
 
 static uint8_t battery_levels[TS_PERIPHERALS > 0 ? TS_PERIPHERALS : 1];
 static int last_sent_win = -1;
+
+/* ---- peripheral connections -------------------------------------------- */
+
+#if TS_PERIPHERALS > 0 && IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
+/* Peripheral slot of a connection we initiated (= a split half), or -1. */
+static int peripheral_slot(struct bt_conn *conn) {
+    struct bt_conn_info info;
+    if (bt_conn_get_info(conn, &info) != 0 || info.role != BT_CONN_ROLE_CENTRAL ||
+        info.state != BT_CONN_STATE_CONNECTED) {
+        return -1;
+    }
+    /* Returns the existing slot index for an already bonded peripheral, like ZMK does. */
+    int slot = zmk_ble_put_peripheral_addr(bt_conn_get_dst(conn));
+    return (slot >= 0 && slot < TS_PERIPHERALS) ? slot : -1;
+}
+
+static void mark_connected(struct bt_conn *conn, void *user_data) {
+    int slot = peripheral_slot(conn);
+    if (slot >= 0) {
+        *(uint8_t *)user_data |= BIT(slot);
+    }
+}
+
+static uint8_t connected_mask(void) {
+    uint8_t mask = 0;
+    bt_conn_foreach(BT_CONN_TYPE_LE, mark_connected, &mask);
+    return mask;
+}
+#else
+static uint8_t connected_mask(void) { return 0; }
+#endif
 
 /* ---- outgoing state ---------------------------------------------------- */
 
@@ -89,6 +121,7 @@ static void send_state(void) {
     for (int i = 0; i < TS_PERIPHERALS; i++) {
         report[TS_HEADER_LEN + i] = battery_levels[i];
     }
+    report[TS_HEADER_LEN + TS_PERIPHERALS] = connected_mask();
 
     last_sent_win = win;
     raise_raw_hid_sent_event(
@@ -131,8 +164,9 @@ static uint8_t battery_read_cb(struct bt_conn *conn, uint8_t err,
         return BT_GATT_ITER_STOP;
     }
 
+    /* 0 is a valid reading too: a nearly empty half (<= 3.45 V) reports 0%. */
     uint8_t level = ((const uint8_t *)data)[0];
-    if (level > 0 && level <= 100 && battery_levels[r->slot] != level) {
+    if (level <= 100 && battery_levels[r->slot] != level) {
         LOG_DBG("Polled battery level %d%% for peripheral %d", level, r->slot);
         battery_levels[r->slot] = level;
         schedule_send(K_MSEC(100));
@@ -141,15 +175,8 @@ static uint8_t battery_read_cb(struct bt_conn *conn, uint8_t err,
 }
 
 static void poll_peripheral(struct bt_conn *conn, void *user_data) {
-    struct bt_conn_info info;
-    if (bt_conn_get_info(conn, &info) != 0 || info.role != BT_CONN_ROLE_CENTRAL ||
-        info.state != BT_CONN_STATE_CONNECTED) {
-        return;
-    }
-
-    /* Returns the existing slot index for an already bonded peripheral. */
-    int slot = zmk_ble_put_peripheral_addr(bt_conn_get_dst(conn));
-    if (slot < 0 || slot >= TS_PERIPHERALS) {
+    int slot = peripheral_slot(conn);
+    if (slot < 0) {
         return;
     }
 
@@ -182,6 +209,21 @@ static void battery_poll_work_cb(struct k_work *work) {
     bt_conn_foreach(BT_CONN_TYPE_LE, poll_peripheral, NULL);
     k_work_schedule(&battery_poll_work, TS_BATTERY_POLL_INTERVAL);
 }
+
+/* Push the new connection state to the host and read the battery soon after a half connects. */
+static void ts_connected(struct bt_conn *conn, uint8_t err) {
+    if (!err) {
+        schedule_send(K_MSEC(200));
+        k_work_reschedule(&battery_poll_work, K_SECONDS(3));
+    }
+}
+
+static void ts_disconnected(struct bt_conn *conn, uint8_t reason) { schedule_send(K_MSEC(200)); }
+
+BT_CONN_CB_DEFINE(totem_status_conn_cb) = {
+    .connected = ts_connected,
+    .disconnected = ts_disconnected,
+};
 
 static int totem_status_init(void) {
     k_work_schedule(&battery_poll_work, K_SECONDS(5));

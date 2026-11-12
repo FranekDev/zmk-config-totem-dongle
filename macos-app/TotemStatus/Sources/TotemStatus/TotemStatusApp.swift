@@ -51,9 +51,9 @@ struct MenuView: View {
                     Section(title: "Bateria") {
                         VStack(spacing: 2) {
                             BatteryRow(name: "Lewa połówka", level: model.leftBattery,
-                                       charging: model.leftCharging)
+                                       connected: model.leftConnected, charging: model.leftCharging)
                             BatteryRow(name: "Prawa połówka", level: model.rightBattery,
-                                       charging: model.rightCharging)
+                                       connected: model.rightConnected, charging: model.rightCharging)
                         }
                     }
                 } else {
@@ -226,9 +226,8 @@ private struct ListRow<Accessory: View>: View {
 private struct BatteryRow: View {
     let name: String
     let level: Int?
+    let connected: Bool
     let charging: Bool
-
-    private var connected: Bool { (level ?? 0) > 0 }
 
     var body: some View {
         ListRow(symbol: symbol, tint: tint, title: name, subtitle: subtitle) {
@@ -247,6 +246,7 @@ private struct BatteryRow: View {
     private var subtitle: String {
         if !connected { return "Rozłączona" }
         if charging { return "Ładuje" }
+        if let level, level == 0 { return "Bateria prawie pusta — naładuj" }
         if let level, level <= 20 { return "Niski poziom baterii" }
         return "Na baterii"
     }

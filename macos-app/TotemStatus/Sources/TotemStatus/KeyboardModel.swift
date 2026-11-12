@@ -22,6 +22,8 @@ final class KeyboardModel: ObservableObject {
     @Published private(set) var isWindows = false
     @Published private(set) var highestLayer = 0
     @Published private(set) var batteries: [Int] = []
+    /// Per peripheral slot: whether the half is connected to the dongle.
+    @Published private(set) var halvesConnected: [Bool] = []
     @Published private(set) var lastUpdate: Date?
     /// Per peripheral slot: true while the battery level is rising (= charging).
     @Published private(set) var charging: [Bool] = []
@@ -54,6 +56,7 @@ final class KeyboardModel: ObservableObject {
                 self.keyboard = nil
                 self.connected = false
                 self.batteries = []
+                self.halvesConnected = []
                 self.charging = []
                 self.chargeTrackers = [:]
             }
@@ -74,8 +77,11 @@ final class KeyboardModel: ObservableObject {
     var leftBattery: Int? { battery(at: swapHalves ? 1 : 0) }
     var rightBattery: Int? { battery(at: swapHalves ? 0 : 1) }
 
+    var leftConnected: Bool { isConnected(at: swapHalves ? 1 : 0) }
+    var rightConnected: Bool { isConnected(at: swapHalves ? 0 : 1) }
+
     var lowestBattery: Int? {
-        [leftBattery, rightBattery].compactMap { $0 }.filter { $0 > 0 }.min()
+        batteries.indices.filter { isConnected(at: $0) }.map { batteries[$0] }.min()
     }
 
     var activeLayerName: String {
@@ -87,6 +93,10 @@ final class KeyboardModel: ObservableObject {
 
     private func battery(at slot: Int) -> Int? {
         slot < batteries.count ? batteries[slot] : nil
+    }
+
+    private func isConnected(at slot: Int) -> Bool {
+        slot < halvesConnected.count ? halvesConnected[slot] : false
     }
 
     private func isCharging(at slot: Int) -> Bool {
@@ -133,6 +143,7 @@ final class KeyboardModel: ObservableObject {
         self.isWindows = isWindows
         self.highestLayer = layer
         self.batteries = batteries
+        self.halvesConnected = batteries.map { $0 > 0 }
         self.charging = charging
     }
 #endif
@@ -154,9 +165,17 @@ final class KeyboardModel: ObservableObject {
         let count = Int(r[9])
         let end = min(TotemProtocol.headerLength + count, r.count)
         batteries = r[TotemProtocol.headerLength..<end].map { Int($0) }
+        if r[2] >= 2, end < r.count {
+            // v2: explicit connection bitmask, so a 0% half is not mistaken for a disconnected one.
+            let mask = r[end]
+            halvesConnected = batteries.indices.map { mask & (1 << $0) != 0 }
+        } else {
+            halvesConnected = batteries.map { $0 > 0 }
+        }
         lastUpdate = Date()
         for (slot, level) in batteries.enumerated() {
-            chargeTrackers[slot, default: ChargeTracker()].record(level)
+            chargeTrackers[slot, default: ChargeTracker()]
+                .record(halvesConnected[slot] ? level : nil)
         }
         updateCharging()
     }
@@ -179,8 +198,8 @@ struct ChargeTracker {
     private var low: Int?
     private var lastRise: Date?
 
-    mutating func record(_ level: Int, now: Date = Date()) {
-        guard level > 0 else {  // 0 = half disconnected
+    mutating func record(_ level: Int?, now: Date = Date()) {
+        guard let level else {  // half disconnected
             self = ChargeTracker()
             return
         }
