@@ -1,0 +1,4 @@
+name: totem-status
+build:
+  cmake: modules/totem_status
+  kconfig: modules/totem_status/Kconfig

@@ -1,0 +1,5 @@
+if (CONFIG_TOTEM_STATUS)
+  zephyr_library()
+  zephyr_library_sources(src/totem_status.c)
+  zephyr_library_include_directories(${APPLICATION_SOURCE_DIR}/include)
+endif()

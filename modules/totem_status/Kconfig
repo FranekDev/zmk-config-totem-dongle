@@ -1,0 +1,12 @@
+config TOTEM_STATUS
+    bool "Report Win/Mac mode and split battery levels to the host over raw HID"
+    depends on RAW_HID
+    depends on ZMK_SPLIT_ROLE_CENTRAL
+
+if TOTEM_STATUS
+
+config TOTEM_STATUS_WIN_LAYER
+    int "Layer index that represents Windows mode"
+    default 1
+
+endif
