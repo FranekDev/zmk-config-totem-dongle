@@ -20,7 +20,12 @@ Dongle -> host: `[0xA7, 0x81, ver, win, highest_layer, layer_mask(4, LE), N, bat
 After the batteries: `connected_mask` (v2+), `left_slot` (v3+, 0xFF = unknown), then
 `voltage_mv[N]` as uint16 LE (v4+, 0 = unknown), then a bitmask of halves on USB power (v5+;
 their % is shown as approximate, since on USB the charger drives the battery pin), then the
-RSSI of each half's link as int8 dBm (v6+, 0 = unknown).
+RSSI of each half's link as int8 dBm (v6+, 0 = unknown), then the charger state (v7+): bit i =
+the charger of slot i is charging, bit 4+i = the half reports it. On USB and not charging = full.
+
+While a half is on a cable its voltage is the charger's, so the app estimates the level instead:
+the last reading on battery plus the time on the cable times a charge rate, which it corrects
+after every charge from the reading once the half is back on battery.
 
 Key press counts (v6+): host sends `[0xA7, 0x04, chunk]`, dongle answers
 `[0xA7, 0x82, boot_id(4, LE), total, first, count, count × uint32 LE]`, cumulative per key position

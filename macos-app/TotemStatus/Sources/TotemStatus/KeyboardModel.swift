@@ -32,6 +32,9 @@ final class KeyboardModel: ObservableObject {
     /// Per peripheral slot: half runs on USB power (protocol v5). Its battery reading is then
     /// the charger's voltage rather than the cell's, so the % is only approximate.
     @Published private(set) var usbPowered: [Bool] = []
+    /// Per peripheral slot: the charger is charging the cell; nil when the half doesn't
+    /// report it (protocol v7). On USB and not charging means the cell is full.
+    @Published private(set) var chargerActive: [Bool?] = []
     /// Per peripheral slot: RSSI of the half's link in dBm, 0 = unknown (protocol v6).
     @Published private(set) var rssi: [Int] = []
     @Published private(set) var lastUpdate: Date?
@@ -116,6 +119,7 @@ final class KeyboardModel: ObservableObject {
                 self.halvesConnected = []
                 self.voltages = []
                 self.usbPowered = []
+                self.chargerActive = []
                 self.rssi = []
                 self.statsFetch = nil
                 self.notifier.reset()
@@ -169,6 +173,30 @@ final class KeyboardModel: ObservableObject {
 
     var leftOnUSB: Bool { isOnUSB(at: leftSlot) }
     var rightOnUSB: Bool { isOnUSB(at: 1 - leftSlot) }
+
+    /// What to show as the level of a half.
+    struct LevelReading {
+        let level: Int
+        /// Estimated (on a cable), not measured.
+        let estimated: Bool
+        /// On a cable with the charger done.
+        let full: Bool
+    }
+
+    func reading(for side: Side) -> LevelReading? {
+        let slot = slot(for: side)
+        guard isConnected(at: slot), let level = battery(at: slot) else { return nil }
+        guard isOnUSB(at: slot) || isCharging(at: slot) else {
+            return LevelReading(level: level, estimated: false, full: false)
+        }
+        let active = slot < chargerActive.count ? chargerActive[slot] : nil
+        // Charger done: no current flows, so the voltage is the cell's own again. The
+        // charger also reads "done" for a moment right after the cable goes in.
+        if active == false, let start = history.chargeStart(for: side), Date().timeIntervalSince(start) > 15 {
+            return LevelReading(level: level, estimated: false, full: true)
+        }
+        return LevelReading(level: history.chargeEstimate(for: side) ?? level, estimated: true, full: false)
+    }
 
     var leftRSSI: Int? { signal(at: leftSlot) }
     var rightRSSI: Int? { signal(at: 1 - leftSlot) }
@@ -337,6 +365,13 @@ final class KeyboardModel: ObservableObject {
             usbPowered = (0..<count).map { mask & (1 << $0) != 0 }
         } else {
             usbPowered = []
+        }
+        let chargeOffset = usbOffset + 1 + count
+        if r[2] >= 7, chargeOffset < r.count {
+            let mask = r[chargeOffset]
+            chargerActive = (0..<count).map { mask & (0x10 << $0) != 0 ? mask & (1 << $0) != 0 : nil }
+        } else {
+            chargerActive = []
         }
         let rssiOffset = usbOffset + 1
         if r[2] >= 6, rssiOffset + count <= r.count {

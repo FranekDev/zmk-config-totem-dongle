@@ -223,9 +223,9 @@ private struct SideTile: View {
     var body: some View {
         let left = side == .left
         let connected = left ? model.leftConnected : model.rightConnected
-        let level = left ? model.leftBattery : model.rightBattery
-        let external = left ? (model.leftOnUSB || model.leftCharging)
-                            : (model.rightOnUSB || model.rightCharging)
+        let reading = model.reading(for: side)
+        let level = reading?.level
+        let external = reading.map { $0.estimated } ?? false
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Capsule().fill(side.color).frame(width: 10, height: 3)
@@ -250,7 +250,7 @@ private struct SideTile: View {
     }
 
     private func detail(external: Bool) -> String {
-        if external { return "Na kablu, prawdziwy poziom po odpięciu" }
+        if external { return "Na kablu, poziom szacowany z czasu ładowania" }
         if let t = history.estimatedRemaining(for: side) { return "Zostało \(formatRemaining(t))" }
         return "Szacunek czasu po kilku godzinach na baterii"
     }

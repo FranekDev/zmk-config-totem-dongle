@@ -12,7 +12,7 @@
  * Keyboard -> host (sent on request and whenever something changes):
  *   [0]    0xA7 magic
  *   [1]    0x81 STATE
- *   [2]    protocol version (6)
+ *   [2]    protocol version (7)
  *   [3]    1 when the Windows layer is active
  *   [4]    highest active layer index
  *   [5..8] active layer bitmask, little endian
@@ -26,6 +26,9 @@
  *   [12+3N] bitmask of peripheral slots running on USB power (v5+); the battery
  *          reading of such a half is the charger's voltage, not the cell's
  *   [13+3N..] RSSI of each half's link in dBm, int8, 0 = unknown (v6+)
+ *   [13+4N] charger state (v7+): bit i = the charger of slot i is charging the cell,
+ *          bit 4+i = that bit is valid (the half reports its charger status). A half
+ *          on USB power whose charger is not charging is full.
  *
  * Key press counts (reply to GET_KEY_STATS, v6+):
  *   [0]    0xA7 magic
@@ -76,7 +79,7 @@
 LOG_MODULE_REGISTER(totem_status, CONFIG_ZMK_LOG_LEVEL);
 
 #define TS_MAGIC 0xA7
-#define TS_PROTOCOL_VERSION 6
+#define TS_PROTOCOL_VERSION 7
 
 #define TS_CMD_GET_STATE 0x01
 #define TS_CMD_SET_OS 0x02
@@ -98,12 +101,16 @@ LOG_MODULE_REGISTER(totem_status, CONFIG_ZMK_LOG_LEVEL);
 #define TS_VOLTAGE_OFFSET (TS_HEADER_LEN + TS_PERIPHERALS + 2)
 #define TS_USB_OFFSET (TS_VOLTAGE_OFFSET + 2 * TS_PERIPHERALS)
 #define TS_RSSI_OFFSET (TS_USB_OFFSET + 1)
-BUILD_ASSERT(TS_RSSI_OFFSET + TS_PERIPHERALS <= CONFIG_RAW_HID_REPORT_SIZE,
+#define TS_CHARGE_OFFSET (TS_RSSI_OFFSET + TS_PERIPHERALS)
+BUILD_ASSERT(TS_PERIPHERALS <= 4, "Charger state byte holds 4 peripheral slots");
+BUILD_ASSERT(TS_CHARGE_OFFSET < CONFIG_RAW_HID_REPORT_SIZE,
              "Raw HID report too small for all peripheral battery levels");
 
 static uint8_t battery_levels[TS_PERIPHERALS > 0 ? TS_PERIPHERALS : 1];
 static uint16_t battery_mv[TS_PERIPHERALS > 0 ? TS_PERIPHERALS : 1];
 static uint8_t usb_powered_mask;
+/* Bit i: slot i is charging, bit 4+i: slot i reports its charger status. */
+static uint8_t charge_mask;
 static int8_t link_rssi[TS_PERIPHERALS > 0 ? TS_PERIPHERALS : 1];
 
 /* ---- key press counts -------------------------------------------------- */
@@ -188,12 +195,14 @@ static void send_state(void) {
         if (!(connected & BIT(i))) {
             battery_mv[i] = 0; /* stale once the half is gone */
             usb_powered_mask &= ~BIT(i);
+            charge_mask &= ~(BIT(i) | BIT(4 + i));
             link_rssi[i] = 0;
         }
         sys_put_le16(battery_mv[i], &report[TS_VOLTAGE_OFFSET + 2 * i]);
         report[TS_RSSI_OFFSET + i] = (uint8_t)link_rssi[i];
     }
     report[TS_USB_OFFSET] = usb_powered_mask;
+    report[TS_CHARGE_OFFSET] = charge_mask;
 
     last_sent_layers = layers;
     raise_raw_hid_sent_event(
@@ -277,8 +286,13 @@ static void handle_voltage(uint8_t slot, const uint8_t *data, uint16_t length) {
     if (length >= 3 && (data[2] & BIT(0))) {
         usb_mask |= BIT(slot);
     }
-    if (usb_mask != usb_powered_mask) {
+    uint8_t chg_mask = charge_mask & ~(BIT(slot) | BIT(4 + slot));
+    if (length >= 3 && (data[2] & BIT(2))) {
+        chg_mask |= BIT(4 + slot) | ((data[2] & BIT(1)) ? BIT(slot) : 0);
+    }
+    if (usb_mask != usb_powered_mask || chg_mask != charge_mask) {
         usb_powered_mask = usb_mask;
+        charge_mask = chg_mask;
         schedule_send(K_MSEC(100));
     }
 }
@@ -525,10 +539,13 @@ static int state_listener(const zmk_event_t *eh) {
     if (bat_ev) {
         if (bat_ev->source < TS_PERIPHERALS) {
             battery_levels[bat_ev->source] = bat_ev->state_of_charge;
-            schedule_send(K_MSEC(100));
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
-            /* The level moved: fetch the matching voltage and USB flag right away. */
-            k_work_reschedule(&battery_poll_work, K_MSEC(300));
+            /* The level moved: fetch the matching voltage and USB flag right away, so
+             * they go out in the same report (the answer triggers the send earlier). */
+            k_work_reschedule(&battery_poll_work, K_NO_WAIT);
+            schedule_send(K_MSEC(700));
+#else
+            schedule_send(K_MSEC(100));
 #endif
         }
         return ZMK_EV_EVENT_BUBBLE;

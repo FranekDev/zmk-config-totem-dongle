@@ -62,8 +62,11 @@ struct MenuView: View {
 
     private func batteryRow(_ side: Side) -> some View {
         let left = side == .left
+        let reading = model.reading(for: side)
         return BatteryRow(name: left ? "Lewa" : "Prawa",
-                          level: left ? model.leftBattery : model.rightBattery,
+                          level: reading?.level,
+                          estimated: reading?.estimated ?? false,
+                          full: reading?.full ?? false,
                           voltage: left ? model.leftVoltage : model.rightVoltage,
                           connected: left ? model.leftConnected : model.rightConnected,
                           charging: left ? model.leftCharging : model.rightCharging,
@@ -272,7 +275,11 @@ struct ListRow<Accessory: View>: View {
 
 private struct BatteryRow: View {
     let name: String
+    /// Measured, or estimated while on a cable.
     let level: Int?
+    var estimated: Bool = false
+    /// On a cable with the charger done.
+    var full: Bool = false
     let voltage: Int?
     let connected: Bool
     let charging: Bool
@@ -284,7 +291,7 @@ private struct BatteryRow: View {
     var rssi: Int? = nil
 
     /// Older half firmware doesn't report USB power: a rising level (charging) means a cable too.
-    private var approximate: Bool { onUSB || charging }
+    private var approximate: Bool { (onUSB || charging) && !full }
 
     var body: some View {
         ListRow(symbol: symbol, tint: tint, title: name, subtitle: subtitle) {
@@ -315,7 +322,9 @@ private struct BatteryRow: View {
             lines.append("Napięcie: " + (Double(voltage) / 1000).formatted(.number.precision(.fractionLength(2))) + " V")
         }
         if approximate {
-            lines.append("Na kablu odczyt pokazuje napięcie ładowarki, nie baterii. Prawdziwy poziom zobaczysz po odpięciu kabla.")
+            lines.append(estimated
+                ? "Poziom szacowany: ostatni odczyt na baterii plus czas ładowania. Na kablu napięcie jest ładowarki, nie baterii; dokładny poziom zobaczysz po odpięciu kabla."
+                : "Na kablu odczyt pokazuje napięcie ładowarki, nie baterii. Prawdziwy poziom zobaczysz po odpięciu kabla.")
         } else if let remaining {
             lines.append("Zostało: \(formatRemaining(remaining))")
         } else {
@@ -336,7 +345,8 @@ private struct BatteryRow: View {
     }
 
     private var status: String {
-        if onUSB { return "Na kablu" }
+        if full { return "Naładowana" }
+        if onUSB { return "Ładuje" }
         if charging { return "Ładuje" }
         if let level, level == 0 { return "Naładuj baterię" }
         if let level, level <= 20 { return "Niski poziom" }
@@ -345,6 +355,7 @@ private struct BatteryRow: View {
 
     private var symbol: String {
         guard let level, connected else { return "battery.0percent" }
+        if full { return "battery.100percent.bolt" }
         if onUSB { return "powerplug" }
         if charging { return "battery.100percent.bolt" }
         switch level {
@@ -358,6 +369,7 @@ private struct BatteryRow: View {
 
     private var tint: Color {
         guard let level, connected else { return .secondary }
+        if full { return .green }
         if onUSB { return .blue }
         if charging { return .green }
         if level <= 20 { return .red }

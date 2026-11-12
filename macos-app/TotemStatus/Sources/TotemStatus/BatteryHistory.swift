@@ -36,6 +36,7 @@ final class BatteryHistory: ObservableObject {
     }
 
     func record(side: Side, mv: Int, level: Int, external: Bool, now: Date = Date()) {
+        if !external { learnChargeRate(side: side, level: level, now: now) }
         if let last = samples.last(where: { $0.side == side }),
            now.timeIntervalSince(last.date) < Self.minInterval,
            last.level == level, last.external == external, abs(last.mv - mv) < 20 {
@@ -44,6 +45,74 @@ final class BatteryHistory: ObservableObject {
         samples.append(BatterySample(date: now, side: side, mv: mv, level: level, external: external))
         samples.removeAll { now.timeIntervalSince($0.date) > Self.keep }
         save()
+    }
+
+    // MARK: - Level while charging
+
+    /// On a cable the reading is the charger's voltage, so the level is estimated instead:
+    /// the last reading on battery plus the time on the cable times the charge rate.
+    /// nil when the half isn't on a cable or there is no reading on battery to start from.
+    func chargeEstimate(for side: Side, now: Date = Date()) -> Int? {
+        let all = samples.filter { $0.side == side }
+        guard let session = chargeSession(in: all, endingAt: all.count), all.last?.external == true else {
+            return nil
+        }
+        let minutes = now.timeIntervalSince(session.start) / 60
+        return min(99, session.base + Int(minutes * chargeRate(for: side)))
+    }
+
+    /// When the current charge began, nil when not on a cable.
+    func chargeStart(for side: Side) -> Date? {
+        let all = samples.filter { $0.side == side }
+        guard all.last?.external == true else { return nil }
+        return chargeSession(in: all, endingAt: all.count)?.start
+    }
+
+    /// Percent per minute. Starts from a typical value (50 mA into a ~110 mAh cell) and is
+    /// corrected after each charge from what the half reads once it is back on battery.
+    func chargeRate(for side: Side) -> Double {
+        let stored = UserDefaults.standard.double(forKey: Self.rateKey(side))
+        return stored > 0 ? stored : Self.defaultChargeRate
+    }
+
+    static let defaultChargeRate = 0.7
+    private static func rateKey(_ side: Side) -> String { "chargeRate.\(side.rawValue)" }
+    private var learnedSessions: [Side: Date] = [:]
+
+    private struct ChargeSession {
+        let base: Int
+        let start: Date
+        let end: Date
+    }
+
+    /// The run of on-cable samples right before index `end`, with the level on battery before it.
+    private func chargeSession(in all: [BatterySample], endingAt end: Int) -> ChargeSession? {
+        var first = end
+        while first > 0, all[first - 1].external { first -= 1 }
+        guard first < end else { return nil }
+        // The level on battery before the cable went in. A reading taken a moment before the
+        // cable was noticed may already be the charger's: skip those.
+        var b = first - 1
+        while b >= 0, all[b].external || all[first].date.timeIntervalSince(all[b].date) < 3 { b -= 1 }
+        guard b >= 0 else { return nil }
+        return ChargeSession(base: all[b].level, start: all[first].date, end: all[end - 1].date)
+    }
+
+    /// Called with a reading on battery: once the cell has rested after a charge, compare
+    /// what it gained with the time on the cable and adjust the rate.
+    private func learnChargeRate(side: Side, level: Int, now: Date) {
+        let all = samples.filter { $0.side == side }
+        guard let lastExternal = all.lastIndex(where: { $0.external }),
+              let session = chargeSession(in: all, endingAt: lastExternal + 1),
+              learnedSessions[side] != session.start else { return }
+        let rested = now.timeIntervalSince(session.end)
+        guard rested >= 60 else { return }
+        learnedSessions[side] = session.start
+        let minutes = session.end.timeIntervalSince(session.start) / 60
+        guard rested < 15 * 60, minutes >= 5 else { return }
+        let measured = Double(max(0, level - session.base)) / minutes
+        let rate = min(3, max(0.05, (chargeRate(for: side) + measured) / 2))
+        UserDefaults.standard.set(rate, forKey: Self.rateKey(side))
     }
 
     func samples(for side: Side, since: Date) -> [BatterySample] {

@@ -32,6 +32,14 @@ config TOTEM_BATTERY_VOLTAGE_SERVICE
     depends on ZMK_BATTERY_REPORTING
     depends on !ZMK_SPLIT_ROLE_CENTRAL
 
+config TOTEM_BATTERY_CHARGE_PIN
+    int "P0.x pin wired to the charger's CHG output (low = charging), -1 = none"
+    default 17
+    depends on TOTEM_BATTERY_VOLTAGE_SERVICE
+    help
+      P0.17 on the XIAO nRF52840. Reported to the dongle so the app can tell a
+      charging half from a full one.
+
 config TOTEM_BATTERY_SAMPLER
     bool "Sample the battery in a burst after boot / USB power changes and while idle"
     depends on BT_BAS
