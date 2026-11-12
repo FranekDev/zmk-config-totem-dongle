@@ -76,7 +76,7 @@ BUILD_ASSERT(TS_VOLTAGE_OFFSET + 2 * TS_PERIPHERALS <= CONFIG_RAW_HID_REPORT_SIZ
 
 static uint8_t battery_levels[TS_PERIPHERALS > 0 ? TS_PERIPHERALS : 1];
 static uint16_t battery_mv[TS_PERIPHERALS > 0 ? TS_PERIPHERALS : 1];
-static int last_sent_win = -1;
+static zmk_keymap_layers_state_t last_sent_layers;
 
 /*
  * Key positions (physical layout order, see totem-layouts.dtsi) on the left half:
@@ -152,7 +152,7 @@ static void send_state(void) {
         sys_put_le16(battery_mv[i], &report[TS_VOLTAGE_OFFSET + 2 * i]);
     }
 
-    last_sent_win = win;
+    last_sent_layers = layers;
     raise_raw_hid_sent_event(
         (struct raw_hid_sent_event){.data = report, .length = sizeof(report)});
 }
@@ -349,9 +349,10 @@ ZMK_SUBSCRIPTION(totem_status_raw_hid, raw_hid_received_event);
 static int state_listener(const zmk_event_t *eh) {
     const struct zmk_layer_state_changed *layer_ev = as_zmk_layer_state_changed(eh);
     if (layer_ev) {
-        /* Only push when Win/Mac mode actually changed, not on every NAV/SYM tap. */
-        if ((int)zmk_keymap_layer_active(TS_WIN_LAYER) != last_sent_win) {
-            schedule_send(K_MSEC(20));
+        /* Push every layer change (the app shows the active layer); the short delay
+         * coalesces several changes from one key press into a single report. */
+        if (zmk_keymap_layer_state() != last_sent_layers) {
+            schedule_send(K_MSEC(10));
         }
         return ZMK_EV_EVENT_BUBBLE;
     }
