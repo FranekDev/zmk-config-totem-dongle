@@ -1,8 +1,8 @@
 /*
  * Runs on the halves: exposes the battery voltage (mV) measured by the
  * zmk,battery sensor as a read-only GATT characteristic, so the dongle can
- * pass it on to the host. Reads return the last sample ZMK took (every
- * CONFIG_ZMK_BATTERY_REPORT_INTERVAL), no extra ADC measurement is made.
+ * pass it on to the host. Reads return the last sample taken (by ZMK or by
+ * battery_sampler.c), no extra ADC measurement is made; the USB flag is live.
  *
  * Value: [0..1] voltage in mV, uint16 little endian
  *        [2]    flags, bit 0 = USB power present (VBUS). On USB the charger drives
@@ -15,23 +15,13 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/sys/byteorder.h>
 
-#if IS_ENABLED(CONFIG_SOC_SERIES_NRF52X)
-#include <hal/nrf_power.h>
-#endif
-
 #include <totem_status/uuids.h>
+
+#include "totem_power.h"
 
 static const struct device *const battery = DEVICE_DT_GET(DT_CHOSEN(zmk_battery));
 
 #define TOTEM_BATTERY_FLAG_USB BIT(0)
-
-static bool usb_powered(void) {
-#if IS_ENABLED(CONFIG_SOC_SERIES_NRF52X) && NRF_POWER_HAS_USBREG
-    return nrf_power_usbregstatus_vbusdet_get(NRF_POWER);
-#else
-    return false;
-#endif
-}
 
 static ssize_t read_voltage(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf,
                             uint16_t len, uint16_t offset) {
@@ -45,7 +35,7 @@ static ssize_t read_voltage(struct bt_conn *conn, const struct bt_gatt_attr *att
 
     uint8_t value[3];
     sys_put_le16(mv, value);
-    value[2] = usb_powered() ? TOTEM_BATTERY_FLAG_USB : 0;
+    value[2] = totem_usb_powered() ? TOTEM_BATTERY_FLAG_USB : 0;
     return bt_gatt_attr_read(conn, attr, buf, len, offset, value, sizeof(value));
 }
 

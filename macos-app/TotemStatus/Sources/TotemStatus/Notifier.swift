@@ -9,11 +9,15 @@ final class Notifier {
     static let rearmLevel = 25
     /// A half that disconnects at or below this is most likely flat, not switched off.
     static let flatLevel = 20
+    /// The level has to stay low this long before the warning goes out.
+    static let lowHold: TimeInterval = 20
 
     private struct SideState {
         var lowWarned = false
         var connected = false
         var lastLevel: Int?
+        /// Since when the level has been low without a break.
+        var lowSince: Date?
     }
 
     private var state: [Side: SideState] = [:]
@@ -41,9 +45,17 @@ final class Notifier {
         guard connected, let level else { return }
         s.lastLevel = level
 
+        if external || level > Self.lowLevel {
+            s.lowSince = nil
+        } else if s.lowSince == nil {
+            s.lowSince = Date()
+        }
+        // One low reading can be a blip: warn once it has held for a while.
+        let lowHeld = s.lowSince.map { Date().timeIntervalSince($0) >= Self.lowHold } ?? false
+
         if external || level >= Self.rearmLevel {
             s.lowWarned = false
-        } else if level <= Self.lowLevel && !s.lowWarned {
+        } else if lowHeld && !s.lowWarned {
             s.lowWarned = true
             if enabled {
                 post(id: "low-\(side.rawValue)",

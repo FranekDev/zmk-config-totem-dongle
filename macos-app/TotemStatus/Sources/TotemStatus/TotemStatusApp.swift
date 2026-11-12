@@ -15,6 +15,8 @@ struct TotemStatusApp: App {
     var body: some Scene {
         MenuBarExtra {
             MenuView(model: model)
+                // Opening the panel makes the dongle read both halves again.
+                .onAppear { model.refresh() }
         } label: {
             // The TOTEM face, plus the active layer while it isn't a base layer.
             HStack(spacing: 4) {

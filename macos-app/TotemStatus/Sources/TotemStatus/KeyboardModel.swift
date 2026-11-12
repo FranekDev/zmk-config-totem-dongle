@@ -92,6 +92,11 @@ final class KeyboardModel: ObservableObject {
     private var keyboard: IOHIDDevice?
     private var pollTimer: Timer?
     private var chargeTrackers: [Int: ChargeTracker] = [:]
+    /// When each half (re)connected. Its first readings can be off (taken during boot, or
+    /// while the cell recovers from the charger), so they stay out of the history and
+    /// the notifications for a moment.
+    private var connectedSince: [Side: Date] = [:]
+    static let settleTime: TimeInterval = 12
 
     init() {
         hid.onDeviceAdded = { [weak self] device in
@@ -116,6 +121,7 @@ final class KeyboardModel: ObservableObject {
                 self.notifier.reset()
                 self.charging = []
                 self.chargeTrackers = [:]
+                self.connectedSince = [:]
             }
         }
         hid.onReport = { [weak self] device, bytes in
@@ -366,9 +372,19 @@ final class KeyboardModel: ObservableObject {
             // a real 0% comes with a voltage (halves with the voltage service).
             let level = battery(at: slot).flatMap { $0 > 0 || voltage(at: slot) != nil ? $0 : nil }
             let external = isOnUSB(at: slot) || isCharging(at: slot)
-            notifier.update(side: side, connected: connected, level: connected ? level : nil,
+            if !connected {
+                connectedSince[side] = nil
+            } else if connectedSince[side] == nil {
+                connectedSince[side] = Date()
+                // Reports only come on changes: make sure one follows the settle time.
+                DispatchQueue.main.asyncAfter(deadline: .now() + Self.settleTime + 1) { [weak self] in
+                    self?.refresh()
+                }
+            }
+            let settling = connectedSince[side].map { Date().timeIntervalSince($0) < Self.settleTime } ?? false
+            notifier.update(side: side, connected: connected, level: connected && !settling ? level : nil,
                             external: external, enabled: notificationsEnabled)
-            if connected, let level {
+            if connected, !settling, let level {
                 history.record(side: side, mv: voltage(at: slot) ?? 0, level: level, external: external)
             }
         }

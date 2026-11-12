@@ -36,6 +36,9 @@ static const struct {
     {3770, 30},  {3750, 25}, {3730, 20}, {3710, 15}, {3690, 10}, {3610, 5},  {3300, 0},
 };
 
+/* Readings per sample, each takes the source ~10 ms (voltage divider settle time). */
+#define LIPO_READINGS 5
+
 static uint8_t lipo_mv_to_pct(uint16_t mv) {
     if (mv >= curve[0].mv) {
         return 100;
@@ -63,18 +66,31 @@ static int lipo_sample_fetch(const struct device *dev, enum sensor_channel chan)
         return -ENODEV;
     }
 
-    int rc = sensor_sample_fetch_chan(cfg->source, SENSOR_CHAN_GAUGE_VOLTAGE);
-    if (rc != 0) {
-        return rc;
+    /* Median of a few readings: a single off reading (ADC calibration on the first
+     * conversion, a radio burst pulling the cell down) must not become the result. */
+    uint16_t mv[LIPO_READINGS];
+    for (size_t i = 0; i < ARRAY_SIZE(mv); i++) {
+        int rc = sensor_sample_fetch_chan(cfg->source, SENSOR_CHAN_GAUGE_VOLTAGE);
+        if (rc != 0) {
+            return rc;
+        }
+
+        struct sensor_value voltage;
+        rc = sensor_channel_get(cfg->source, SENSOR_CHAN_GAUGE_VOLTAGE, &voltage);
+        if (rc != 0) {
+            return rc;
+        }
+
+        /* Insert in ascending order. */
+        uint16_t v = voltage.val1 * 1000 + voltage.val2 / 1000;
+        size_t j = i;
+        for (; j > 0 && mv[j - 1] > v; j--) {
+            mv[j] = mv[j - 1];
+        }
+        mv[j] = v;
     }
 
-    struct sensor_value voltage;
-    rc = sensor_channel_get(cfg->source, SENSOR_CHAN_GAUGE_VOLTAGE, &voltage);
-    if (rc != 0) {
-        return rc;
-    }
-
-    data->millivolts = voltage.val1 * 1000 + voltage.val2 / 1000;
+    data->millivolts = mv[ARRAY_SIZE(mv) / 2];
     data->state_of_charge = lipo_mv_to_pct(data->millivolts);
     LOG_DBG("%d mV => %d%%", data->millivolts, data->state_of_charge);
     return 0;

@@ -31,3 +31,14 @@ config TOTEM_BATTERY_VOLTAGE_SERVICE
     depends on BT_PERIPHERAL
     depends on ZMK_BATTERY_REPORTING
     depends on !ZMK_SPLIT_ROLE_CENTRAL
+
+config TOTEM_BATTERY_SAMPLER
+    bool "Sample the battery in a burst after boot / USB power changes and while idle"
+    depends on BT_BAS
+    depends on ZMK_BATTERY_REPORTING
+    depends on !ZMK_SPLIT_ROLE_CENTRAL
+
+config TOTEM_BATTERY_SAMPLER_INTERVAL
+    int "Seconds between battery samples outside of a burst"
+    default 30
+    depends on TOTEM_BATTERY_SAMPLER

@@ -237,8 +237,9 @@ static void schedule_send(k_timeout_t delay) { k_work_reschedule(&send_state_wor
  */
 #if TS_PERIPHERALS > 0 && IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
 
-/* The halves sample their battery every CONFIG_ZMK_BATTERY_REPORT_INTERVAL (60 s by default). */
-#define TS_BATTERY_POLL_INTERVAL K_SECONDS(60)
+/* The halves sample every 30 s (TOTEM_BATTERY_SAMPLER) and push level changes themselves;
+ * this mostly keeps the voltage and the USB flag current. One ATT read each per half. */
+#define TS_BATTERY_POLL_INTERVAL K_SECONDS(15)
 #define TS_BATTERY_READ_TIMEOUT_MS 10000
 
 struct ts_read {
@@ -460,6 +461,11 @@ static void command_work_cb(struct k_work *work) {
 #endif
         switch (c.cmd) {
         case TS_CMD_GET_STATE:
+#if TS_PERIPHERALS > 0 && IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
+            /* Answer with what we have now and read the halves again: a change
+             * follows as another report within a second. */
+            k_work_reschedule(&battery_poll_work, K_NO_WAIT);
+#endif
             break;
         case TS_CMD_SET_OS:
             if (c.arg) {
@@ -520,6 +526,10 @@ static int state_listener(const zmk_event_t *eh) {
         if (bat_ev->source < TS_PERIPHERALS) {
             battery_levels[bat_ev->source] = bat_ev->state_of_charge;
             schedule_send(K_MSEC(100));
+#if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
+            /* The level moved: fetch the matching voltage and USB flag right away. */
+            k_work_reschedule(&battery_poll_work, K_MSEC(300));
+#endif
         }
         return ZMK_EV_EVENT_BUBBLE;
     }
