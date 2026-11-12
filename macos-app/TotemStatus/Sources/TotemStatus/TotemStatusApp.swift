@@ -255,6 +255,8 @@ struct ListRow<Accessory: View>: View {
                     Text(subtitle)
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
+                        // Wrap instead of truncating: the menu bar panel is narrow.
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             Spacer(minLength: 8)
@@ -294,12 +296,31 @@ private struct BatteryRow: View {
                         .foregroundStyle(approximate ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                         .monospacedDigit()
                         .frame(width: 40, alignment: .trailing)
-                        .help(approximate
-                              ? "Na kablu odczyt pokazuje napięcie ładowarki, nie baterii. Prawdziwy poziom zobaczysz po odpięciu kabla."
-                              : "")
                 }
             }
         }
+        .contentShape(.rect(cornerRadius: 10))
+        .help(details)
+    }
+
+    /// Everything about the half in full, for the tooltip.
+    private var details: String {
+        var lines = ["\(name) połówka"]
+        guard connected else { return (lines + ["Rozłączona z donglem"]).joined(separator: "\n") }
+        lines.append("Stan: \(status)")
+        if let level { lines.append("Poziom: \(approximate ? "~" : "")\(level)%") }
+        if let voltage {
+            lines.append("Napięcie: " + (Double(voltage) / 1000).formatted(.number.precision(.fractionLength(2))) + " V")
+        }
+        if approximate {
+            lines.append("Na kablu odczyt pokazuje napięcie ładowarki, nie baterii. Prawdziwy poziom zobaczysz po odpięciu kabla.")
+        } else if let remaining {
+            lines.append("Zostało: \(formatRemaining(remaining))")
+        } else {
+            lines.append("Czas pracy oszacuję po kilku godzinach na baterii")
+        }
+        if let rssi { lines.append("Sygnał do dongla: \(rssi) dBm (\(SignalBars.quality(rssi)))") }
+        return lines.joined(separator: "\n")
     }
 
     private var subtitle: String {
@@ -351,7 +372,7 @@ private struct SignalBars: View {
         rssi >= -65 ? 1 : rssi >= -75 ? 0.66 : rssi >= -85 ? 0.33 : 0
     }
 
-    private var quality: String {
+    static func quality(_ rssi: Int) -> String {
         rssi >= -65 ? "bardzo dobry" : rssi >= -75 ? "dobry" : rssi >= -85 ? "słaby" : "bardzo słaby"
     }
 
@@ -359,7 +380,6 @@ private struct SignalBars: View {
         Image(systemName: "cellularbars", variableValue: fraction)
             .font(.system(size: 10, weight: .semibold))
             .foregroundStyle(fraction <= 0.33 ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
-            .help("Sygnał do dongla: \(rssi) dBm (\(quality))")
     }
 }
 
